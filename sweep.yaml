@@ -8,7 +8,7 @@ metric:
 
 parameters:
   operation:
-    value: "x/y"
+    value: "x+y"
   training_fraction:
     value: [0.5]
   num_layers:

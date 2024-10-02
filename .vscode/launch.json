@@ -1,0 +1,46 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Grokking",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "grokking/cli.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--operation",
+                "x+y",
+                "--training_fraction",
+                "0.3",
+                "--prime",
+                "97",
+                "--num_layers",
+                "2",
+                "--dim_model",
+                "128",
+                "--num_heads",
+                "4",
+                "--batch_size",
+                "512",
+                "--learning_rate",
+                "1e-3",
+                "--weight_decay",
+                "1",
+                "--num_steps",
+                "10000",
+                "--device",
+                "cuda"
+            ]
+        }
+    ]
+}
