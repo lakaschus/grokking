@@ -41,6 +41,17 @@
                 "--device",
                 "cuda"
             ]
+        },
+        {
+            "name": "Inference",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "grokking/infer.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--model_path",
+                "models/best_model_x+y.pt",
+            ],
         }
     ]
 }
