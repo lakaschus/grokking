@@ -60,7 +60,11 @@ def main(args: dict):
     wandb.define_metric("validation/loss", step_metric="epoch")
 
     train_loader, val_loader, op_token, eq_token = get_data(
-        config.operation, config.prime, config.training_fraction, config.batch_size
+        config.operation,
+        config.prime,
+        config.training_fraction,
+        config.batch_size,
+        config.curriculum,
     )
     export_dataloader_data(train_loader, "train_data.json")
     export_dataloader_data(val_loader, "val_data.json")
