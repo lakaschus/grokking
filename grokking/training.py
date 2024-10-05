@@ -5,7 +5,7 @@ import wandb
 from wandb import Table
 import json
 
-from data import get_data
+from data import get_data, binary_tokens
 from model import Transformer
 
 
@@ -59,7 +59,7 @@ def main(args: dict):
     wandb.define_metric("validation/accuracy", step_metric="epoch")
     wandb.define_metric("validation/loss", step_metric="epoch")
 
-    train_loader, val_loader, op_token, eq_token = get_data(
+    train_loader, val_loader, op_token, eq_token, num_unique_tokens = get_data(
         config.operation,
         config.prime,
         config.training_fraction,
@@ -68,13 +68,15 @@ def main(args: dict):
     )
     export_dataloader_data(train_loader, "train_data.json")
     export_dataloader_data(val_loader, "val_data.json")
+    max_sequence_length = len(train_loader.dataset[0][0])
+    config.max_sequence_length = max_sequence_length
 
     model = Transformer(
         num_layers=config.num_layers,
         dim_model=config.dim_model,
         num_heads=config.num_heads,
-        num_tokens=eq_token + 1,
-        seq_len=5,
+        num_tokens=num_unique_tokens,
+        seq_len=max_sequence_length,
     ).to(device)
     optimizer = torch.optim.AdamW(
         model.parameters(),
@@ -91,7 +93,7 @@ def main(args: dict):
     best_val_acc = 0.0
 
     for epoch in tqdm(range(num_epochs)):
-        train(model, train_loader, optimizer, scheduler, device, config.num_steps)
+        train(model, train_loader, optimizer, scheduler, device, config)
         val_acc, val_loss = evaluate(model, val_loader, device, epoch)
 
         if val_acc > best_val_acc:
@@ -102,7 +104,7 @@ def main(args: dict):
                 "dim_model": config.dim_model,
                 "num_heads": config.num_heads,
                 "num_tokens": eq_token + 1,
-                "seq_len": 5,
+                "seq_len": max_sequence_length,
                 "op_token": op_token,
                 "eq_token": eq_token,
             }
@@ -118,10 +120,13 @@ def main(args: dict):
             torch.save(checkpoint, model_filename)
 
 
-def train(model, train_loader, optimizer, scheduler, device, num_steps):
+def train(model, train_loader, optimizer, scheduler, device, config):
     # Set model to training mode
     model.train()
-    criterion = torch.nn.CrossEntropyLoss()
+    if config.task_type == "sequence":
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=binary_tokens["<EOS>"])
+    else:
+        criterion = torch.nn.CrossEntropyLoss()
 
     # Loop over each batch from the training set
     for batch in train_loader:
@@ -135,10 +140,34 @@ def train(model, train_loader, optimizer, scheduler, device, num_steps):
         # Zero gradient buffers
         optimizer.zero_grad()
 
-        # Forward pass
-        output = model(inputs)[-1, :, :]
-        loss = criterion(output, labels)
-        acc = (torch.argmax(output, dim=1) == labels).sum() / len(labels)
+        if config.task_type == "classification":
+            # Zero gradient buffers
+            optimizer.zero_grad()
+            # Forward pass
+            output = model(inputs)[-1, :, :]
+            loss = criterion(output, labels)
+            # Compute accuracy
+            acc = (torch.argmax(output, dim=1) == labels).sum() / len(labels)
+        elif config.task_type == "sequence":
+            # Prepare decoder input by shifting labels to the right
+            decoder_input = inputs[:, :-1]  # [batch_size, tgt_seq_len - 1]
+            target = inputs[:, 1:]  # [batch_size, tgt_seq_len - 1]
+
+            # Zero gradient buffers
+            optimizer.zero_grad()
+
+            # Forward pass through the model
+            output = model(decoder_input)  # [batch_size, total_seq_len, num_tokens]
+
+            # Reshape outputs and targets for loss computation
+            output = output.transpose(0, 1)  # Change first and second index
+
+            # Compute loss
+            loss = criterion(output, target)
+
+            # Compute accuracy
+            preds = torch.argmax(output, dim=1)
+            acc = (preds == target).sum().float() / (target != 0).sum().float()
 
         # Backward pass
         loss.backward()
@@ -155,7 +184,7 @@ def train(model, train_loader, optimizer, scheduler, device, num_steps):
         wandb.log(metrics)
 
         # Finish training at maximum gradient updates
-        if wandb.run.step == num_steps:
+        if wandb.run.step == config.num_steps:
             return
 
 

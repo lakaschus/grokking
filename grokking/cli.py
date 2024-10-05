@@ -9,6 +9,7 @@ if __name__ == "__main__":
         "--operation", type=str, choices=ALL_OPERATIONS.keys(), default="x/y"
     )
     parser.add_argument("--curriculum", type=str, default="random")
+    parser.add_argument("--task_type", type=str, default="classification")
     parser.add_argument("--training_fraction", type=float, default=0.5)
     parser.add_argument("--prime", type=int, default=97)
     parser.add_argument("--num_layers", type=int, default=2)
