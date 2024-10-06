@@ -94,7 +94,7 @@ def main(args: dict):
 
     for epoch in tqdm(range(num_epochs)):
         train(model, train_loader, optimizer, scheduler, device, config)
-        val_acc, val_loss = evaluate(model, val_loader, device, epoch)
+        val_acc, val_loss = evaluate(model, val_loader, device, epoch, config)
 
         if val_acc > best_val_acc:
             best_val_acc = val_acc
@@ -149,25 +149,45 @@ def train(model, train_loader, optimizer, scheduler, device, config):
             # Compute accuracy
             acc = (torch.argmax(output, dim=1) == labels).sum() / len(labels)
         elif config.task_type == "sequence":
-            # Prepare decoder input by shifting labels to the right
-            decoder_input = inputs[:, :-1]  # [batch_size, tgt_seq_len - 1]
-            target = inputs[:, 1:]  # [batch_size, tgt_seq_len - 1]
+            eq_positions = (inputs == binary_tokens["="]).nonzero(as_tuple=True)[1]
 
-            # Zero gradient buffers
-            optimizer.zero_grad()
+            # Prepare decoder input by shifting the entire sequence to the right
+            decoder_input = inputs[:, :-1]  # [batch_size, seq_len - 1]
+            target = inputs[:, 1:]  # [batch_size, seq_len - 1]
 
             # Forward pass through the model
-            output = model(decoder_input)  # [batch_size, total_seq_len, num_tokens]
+            output = model(decoder_input)  # [seq_len -1, batch_size, num_tokens]
 
-            # Reshape outputs and targets for loss computation
-            output = output.transpose(0, 1)  # Change first and second index
+            # **Transpose the output to [batch_size, seq_len -1, num_tokens]**
+            output = output.transpose(0, 1)  # Now [batch_size, seq_len -1, num_tokens]
 
-            # Compute loss
-            loss = criterion(output, target)
+            # Unpack the dimensions correctly
+            batch_size, seq_len, _ = output.size()
 
-            # Compute accuracy
-            preds = torch.argmax(output, dim=1)
-            acc = (preds == target).sum().float() / (target != 0).sum().float()
+            # Create a mask for positions after "=" token
+            mask = torch.arange(seq_len, device=device).unsqueeze(0).expand(
+                batch_size, seq_len
+            ) > eq_positions.unsqueeze(1)
+
+            # Flatten the output and target tensors
+            flat_output = output.contiguous().view(
+                -1, output.size(-1)
+            )  # [batch_size * seq_len, num_tokens]
+            flat_target = target.contiguous().view(-1)  # [batch_size * seq_len]
+
+            # Apply the mask to select only the relevant positions
+            mask_flat = mask.view(-1)  # [batch_size * seq_len]
+            masked_output = flat_output[mask_flat]  # [num_selected, num_tokens]
+            masked_target = flat_target[mask_flat]  # [num_selected]
+
+            # Calculate loss
+            loss = criterion(masked_output, masked_target)
+
+            # Calculate accuracy
+            preds = torch.argmax(masked_output, dim=1)
+            correct = (preds == masked_target).float()
+            total = (masked_target != binary_tokens["<EOS>"]).float()
+            acc = correct.sum() / total.sum()
 
         # Backward pass
         loss.backward()
@@ -188,15 +208,22 @@ def train(model, train_loader, optimizer, scheduler, device, config):
             return
 
 
-def evaluate(model, val_loader, device, epoch):
+def evaluate(model, val_loader, device, epoch, config):
     # Set model to evaluation mode
     model.eval()
-    criterion = torch.nn.CrossEntropyLoss()
 
-    correct = 0
-    loss = 0.0
+    if config.task_type == "classification":
+        criterion = torch.nn.CrossEntropyLoss()
+    elif config.task_type == "sequence":
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=binary_tokens["<EOS>"])
+    else:
+        raise ValueError(f"Unsupported task type: {config.task_type}")
 
-    examples_table = Table(columns=["Input", "Predicted Output", "True Output"])
+    total_loss = 0.0
+    total_correct = 0
+    total_samples = 0
+
+    examples_table = []
 
     # Loop over each batch from the validation set
     for batch in val_loader:
@@ -208,33 +235,77 @@ def evaluate(model, val_loader, device, epoch):
 
         # Forward pass
         with torch.no_grad():
-            output = model(inputs)[-1, :, :]
-            correct += (torch.argmax(output, dim=1) == labels).sum()
-            loss += criterion(output, labels) * len(labels)
+            if config.task_type == "classification":
+                output = model(inputs)[-1, :, :]
+                loss = criterion(output, labels)
+                preds = torch.argmax(output, dim=1)
+                correct = (preds == labels).sum().item()
+                total_samples += len(labels)
 
-    acc = correct / len(val_loader.dataset)
-    loss = loss / len(val_loader.dataset)
+            elif config.task_type == "sequence":
+                eq_positions = (inputs == binary_tokens["="]).nonzero(as_tuple=True)[1]
+                decoder_input = inputs[:, :-1]
+                target = inputs[:, 1:]
+                output = model(decoder_input)  # [seq_len -1, batch_size, num_tokens]
 
-    examples_table = []
-    for i in range(min(3, len(inputs))):
-        input_example = str(list(inputs[i].cpu().numpy()))
-        predicted_output = str(torch.argmax(output[i]).item())
-        true_output = str(labels[i].item())
+                # **Transpose the output to [batch_size, seq_len -1, num_tokens]**
+                output = output.transpose(
+                    0, 1
+                )  # Now [batch_size, seq_len -1, num_tokens]
+
+                batch_size, seq_len, _ = output.size()
+                mask = torch.arange(seq_len, device=device).unsqueeze(0).expand(
+                    batch_size, seq_len
+                ) > eq_positions.unsqueeze(1)
+
+                reshaped_output = output.contiguous().view(
+                    -1, output.size(-1)
+                )  # [batch_size * seq_len, num_tokens]
+                reshaped_target = target.contiguous().view(-1)  # [batch_size * seq_len]
+
+                mask_flat = mask.contiguous().view(-1)  # [batch_size * seq_len]
+                masked_output = reshaped_output[mask_flat]  # [num_selected, num_tokens]
+                masked_target = reshaped_target[mask_flat]  # [num_selected]
+
+                loss = criterion(masked_output, masked_target)
+                preds = torch.argmax(masked_output, dim=1)
+                correct = (preds == masked_target).float().sum().item()
+                total_samples += (masked_target != binary_tokens["<EOS>"]).sum().item()
+
+        total_loss += loss.item() * inputs.size(0)
+        total_correct += correct
+
+        # Collect examples for visualization
+        input_example = str(list(inputs[0].cpu().numpy()))
+        if config.task_type == "classification":
+            predicted_output = str(preds[0].item())
+            true_output = str(labels[0].item())
+        else:  # sequence
+            start_idx = 0
+            end_idx = seq_len
+            predicted_output = str(preds[start_idx:end_idx].cpu().numpy())
+            true_output = str(masked_target[start_idx:end_idx].cpu().numpy())
         examples_table.append([input_example, predicted_output, true_output])
-        examples_table.append([input_example, predicted_output, true_output])
 
+    # Calculate average loss and accuracy
+    avg_loss = total_loss / len(val_loader.dataset)
+    accuracy = total_correct / total_samples
+
+    # Create wandb table for examples
     columns = ["example", "prediction", "truth"]
     wandb_table = wandb.Table(data=examples_table, columns=columns)
 
-    if wandb.run.step % 100 == 0:
+    # Log model parameters if needed
+    if wandb.run.step % 10 == 0:
         log_model_parameters_wandb(model)
 
+    # Log metrics
     metrics = {
         f"Examples_epoch_{epoch}": wandb_table,
-        "validation/accuracy": acc,
-        "validation/loss": loss,
+        "validation/accuracy": accuracy,
+        "validation/loss": avg_loss,
         "epoch": epoch,
     }
-    wandb.log(metrics, commit=False)
+    wandb.log(metrics, commit=True)
 
-    return acc, loss  # Return the metrics
+    return accuracy, avg_loss

@@ -45,7 +45,9 @@ def operation_mod_p_data(operation: str, p: int):
     return inputs, labels, op_token, eq_token
 
 
-def binary_addition_data(variable_length: bool = True, num_samples: int = None):
+def binary_addition_data(
+    variable_length: bool = True, num_samples: int = None, max_bit_length: int = 8
+):
     """
     Generate binary addition data with variable lengths (no leading zeros).
 
@@ -61,18 +63,15 @@ def binary_addition_data(variable_length: bool = True, num_samples: int = None):
     if variable_length:
         if num_samples is None:
             # Define a maximum bit length for practical purposes
-            max_bit_length = 8  # Adjust as needed
             x = torch.arange(0, 2**max_bit_length)
             y = torch.arange(0, 2**max_bit_length)
             x, y = torch.cartesian_prod(x, y).T
         else:
             # Randomly sample numbers with varying bit lengths
-            max_bit_length = 8  # Adjust as needed
             x = torch.randint(0, 2**max_bit_length, (num_samples,))
             y = torch.randint(0, 2**max_bit_length, (num_samples,))
     else:
         # Fixed bit length (for reference)
-        max_bit_length = 8
         x = torch.arange(0, 2**max_bit_length)
         y = torch.arange(0, 2**max_bit_length)
         x, y = torch.cartesian_prod(x, y).T
@@ -136,7 +135,9 @@ def get_data(
     elif "binary" in operation:
         if max_number is None:
             raise ValueError("Bit length must be specified for binary addition.")
-        inputs, labels, op_token, eq_token = binary_addition_data(max_number)
+        inputs, labels, op_token, eq_token = binary_addition_data(
+            max_bit_length=max_number
+        )
 
         input_tensors = [torch.tensor(seq) for seq in inputs]
         label_tensors = [torch.tensor(seq) for seq in labels]
