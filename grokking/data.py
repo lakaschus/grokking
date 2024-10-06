@@ -1,6 +1,11 @@
+# data.py
+
 from math import ceil
 import torch
+from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, TensorDataset
+from typing import Tuple, List, Dict
 
 DIVISION_MODULO_OPERATIONS = {
     "x/y": lambda x, y, p: (x * y % p, y, x),
@@ -17,37 +22,54 @@ ALL_OPERATIONS = {
     **ALL_MODULO_OPERATIONS,
 }
 
-binary_tokens = {"0": 0, "1": 1, "+": 2, "=": 3, "<EOS>": 4}  # Example token index
+BINARY_TOKENS = {"0": 0, "1": 1, "+": 2, "=": 3, "<EOS>": 4}  # Example token index
 
 # Update op_token and eq_token if necessary
-binary_op_token = binary_tokens["+"]
-binary_eq_token = binary_tokens["="]
+BINARY_OP_TOKEN = BINARY_TOKENS["+"]
+BINARY_EQ_TOKEN = BINARY_TOKENS["="]
 
 
-def operation_mod_p_data(operation: str, p: int):
+def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, int]:
     """
-    x◦y (mod p) for 0 <= x < p, 1 <= y < p if operation in DIVISION_MODULO_OPERATIONS
-    x◦y (mod p) for 0 <= x, y < p otherwise
+    Generate data for operations involving modulo.
+
+    Args:
+        operation (str): The operation to perform.
+        p (int): The modulo value.
+
+    Returns:
+        Tuple containing inputs, labels, op_token, and eq_token.
     """
+    x, y = generate_cartesian_product(p)
+    x, y, labels = ALL_OPERATIONS[operation](x, y, p)
+    op_token, eq_token = define_tokens(labels)
+    inputs = create_input_sequences(x, y, op_token, eq_token)
+    return inputs, labels, op_token, eq_token
+
+
+def generate_cartesian_product(p: int) -> Tuple[Tensor, Tensor]:
     x = torch.arange(0, p)
     y = torch.arange(0, p)
-    x, y = torch.cartesian_prod(x, y).T
+    return torch.cartesian_prod(x, y).T
 
-    x, y, labels = ALL_OPERATIONS[operation](x, y, p)
 
-    op_token = torch.max(labels) + 1
+def define_tokens(labels: Tensor) -> Tuple[int, int]:
+    op_token = torch.max(labels).item() + 1
     eq_token = op_token + 1
+    return op_token, eq_token
+
+
+def create_input_sequences(
+    x: Tensor, y: Tensor, op_token: int, eq_token: int
+) -> Tensor:
     eq = torch.ones_like(x) * eq_token
     op = torch.ones_like(x) * op_token
-
-    inputs = torch.stack([x, op, y, eq], dim=1)
-
-    return inputs, labels, op_token, eq_token
+    return torch.stack([x, op, y, eq], dim=1)
 
 
 def binary_addition_data(
     variable_length: bool = True, num_samples: int = None, max_bit_length: int = 8
-):
+) -> Tuple[List[List[int]], List[List[int]], int, int]:
     """
     Generate binary addition data with variable lengths (no leading zeros).
 
@@ -55,53 +77,63 @@ def binary_addition_data(
         variable_length (bool): If True, generate variable-length binary numbers.
         num_samples (int, optional): Number of samples to generate.
                                      If None, generate all possible combinations up to a certain bit length.
+        max_bit_length (int): Maximum bit length for binary numbers.
 
     Returns:
-        inputs (List[List[int]]): Token sequences for inputs.
-        labels (List[List[int]]): Token sequences for labels.
+        Tuple containing input sequences, label sequences, op_token, and eq_token.
     """
+    x, y = generate_binary_operands(variable_length, num_samples, max_bit_length)
+    sum_xy = x + y
+    inputs, labels = encode_binary_sequences(x, y, sum_xy)
+    return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
+
+
+def generate_binary_operands(
+    variable_length: bool, num_samples: int, max_bit_length: int
+) -> Tuple[Tensor, Tensor]:
     if variable_length:
         if num_samples is None:
-            # Define a maximum bit length for practical purposes
             x = torch.arange(0, 2**max_bit_length)
             y = torch.arange(0, 2**max_bit_length)
             x, y = torch.cartesian_prod(x, y).T
         else:
-            # Randomly sample numbers with varying bit lengths
             x = torch.randint(0, 2**max_bit_length, (num_samples,))
             y = torch.randint(0, 2**max_bit_length, (num_samples,))
     else:
-        # Fixed bit length (for reference)
         x = torch.arange(0, 2**max_bit_length)
         y = torch.arange(0, 2**max_bit_length)
         x, y = torch.cartesian_prod(x, y).T
+    return x, y
 
-    sum_xy = x + y
 
+def encode_binary_sequences(
+    x: Tensor, y: Tensor, sum_xy: Tensor
+) -> Tuple[List[List[int]], List[List[int]]]:
     inputs = []
     labels = []
-
     for a, b, c in zip(x, y, sum_xy):
-        # Convert to binary strings without leading zeros
         a_bin = bin(a)[2:] if a != 0 else "0"
         b_bin = bin(b)[2:] if b != 0 else "0"
         c_bin = bin(c)[2:] if c != 0 else "0"
 
-        # Encode input sequence: a_bin + '+' + b_bin + '=' + <EOS>
-        input_seq = (
-            [binary_tokens[bit] for bit in a_bin]
-            + [binary_tokens["+"]]
-            + [binary_tokens[bit] for bit in b_bin]
-            + [binary_tokens["="]]
-        )
-
-        # Encode label sequence: c_bin + <EOS>
-        label_seq = [binary_tokens[bit] for bit in c_bin] + [binary_tokens["<EOS>"]]
-
+        input_seq = encode_sequence(a_bin, b_bin)
+        label_seq = encode_label_sequence(c_bin)
         inputs.append(input_seq)
         labels.append(label_seq)
+    return inputs, labels
 
-    return inputs, labels, binary_tokens["+"], binary_tokens["="]
+
+def encode_sequence(a_bin: str, b_bin: str) -> List[int]:
+    return (
+        [BINARY_TOKENS[bit] for bit in a_bin]
+        + [BINARY_TOKENS["+"]]
+        + [BINARY_TOKENS[bit] for bit in b_bin]
+        + [BINARY_TOKENS["="]]
+    )
+
+
+def encode_label_sequence(c_bin: str) -> List[int]:
+    return [BINARY_TOKENS[bit] for bit in c_bin] + [BINARY_TOKENS["<EOS>"]]
 
 
 def get_data(
@@ -110,99 +142,107 @@ def get_data(
     training_fraction: float = 0.8,
     batch_size: int = 32,
     curriculum: str = "random",
-):
+) -> Tuple[DataLoader, DataLoader, int, int, int]:
     """
     Get data loaders for the specified operation.
 
     Args:
         operation (str): The operation to perform ('x+y', 'x+y_binary', etc.).
-        max_number (int, optional): max_number number for modulo operations.
-        max_number (int, optional): Bit length for binary addition.
+        max_number (int, optional): Max number for modulo operations or bit length for binary addition.
         training_fraction (float): Fraction of data to use for training.
         batch_size (int): Batch size for data loaders.
         curriculum (str): Curriculum learning strategy.
 
     Returns:
-        train_loader, val_loader, op_token, eq_token
+        Tuple containing train_loader, val_loader, op_token, eq_token, num_unique_tokens
     """
     if operation in ALL_OPERATIONS and "binary" not in operation:
-        # Handle existing operations
-        if max_number is None:
-            raise ValueError("max_number must be specified for modulo operations.")
         inputs, labels, op_token, eq_token = operation_mod_p_data(operation, max_number)
-        dataset = torch.utils.data.TensorDataset(inputs, labels)
         num_unique_tokens = eq_token + 1
     elif "binary" in operation:
-        if max_number is None:
-            raise ValueError("Bit length must be specified for binary addition.")
         inputs, labels, op_token, eq_token = binary_addition_data(
-            max_bit_length=max_number
+            variable_length=True, num_samples=None, max_bit_length=max_number
         )
-
-        input_tensors = [torch.tensor(seq) for seq in inputs]
-        label_tensors = [torch.tensor(seq) for seq in labels]
-        concatenated_inputs = [
-            torch.cat((input_t, label_t))
-            for input_t, label_t in zip(input_tensors, label_tensors)
-        ]
-
-        concatenated_inputs_padded = pad_sequence(
-            concatenated_inputs, batch_first=True, padding_value=binary_tokens["<EOS>"]
+        inputs_padded, labels_padded = pad_binary_sequences(inputs, labels)
+        dataset = TensorDataset(
+            torch.tensor(inputs_padded), torch.tensor(labels_padded)
         )
-        labels_padded = pad_sequence(
-            label_tensors, batch_first=True, padding_value=binary_tokens["<EOS>"]
+        num_unique_tokens = BINARY_TOKENS["<EOS>"] + 1
+        return (
+            create_data_loaders(dataset, training_fraction, batch_size, curriculum),
+            num_unique_tokens,
         )
-
-        dataset = torch.utils.data.TensorDataset(
-            concatenated_inputs_padded, labels_padded
-        )
-        num_unique_tokens = binary_tokens["<EOS>"] + 1
     else:
         raise ValueError(f"Unsupported operation: {operation}")
 
+    dataset = TensorDataset(inputs, labels)
+    return (
+        create_data_loaders(dataset, training_fraction, batch_size, curriculum),
+        op_token,
+        eq_token,
+        num_unique_tokens,
+    )
+
+
+def pad_binary_sequences(
+    inputs: List[List[int]], labels: List[List[int]]
+) -> Tuple[Tensor, Tensor]:
+    concatenated_inputs = [
+        torch.cat((torch.tensor(input_t), torch.tensor(label_t)))
+        for input_t, label_t in zip(inputs, labels)
+    ]
+    concatenated_inputs_padded = pad_sequence(
+        concatenated_inputs, batch_first=True, padding_value=BINARY_TOKENS["<EOS>"]
+    )
+    labels_padded = pad_sequence(
+        [torch.tensor(seq) for seq in labels],
+        batch_first=True,
+        padding_value=BINARY_TOKENS["<EOS>"],
+    )
+    return concatenated_inputs_padded, labels_padded
+
+
+def create_data_loaders(
+    dataset: TensorDataset, training_fraction: float, batch_size: int, curriculum: str
+) -> Tuple[DataLoader, DataLoader, int, int, int]:
+    train_loader, val_loader, op_token, eq_token = split_dataset(
+        dataset, training_fraction, curriculum
+    )
+    num_unique_tokens = eq_token + 1
+    batch_size = min(batch_size, ceil(len(dataset) / 2))
+    return (
+        DataLoader(
+            train_loader, batch_size=batch_size, shuffle=(curriculum == "random")
+        ),
+        DataLoader(val_loader, batch_size=batch_size, shuffle=(curriculum == "random")),
+        op_token,
+        eq_token,
+        num_unique_tokens,
+    )
+
+
+def split_dataset(
+    dataset: TensorDataset, training_fraction: float, curriculum: str
+) -> Tuple[TensorDataset, TensorDataset, int, int]:
     train_size = int(training_fraction * len(dataset))
     val_size = len(dataset) - train_size
 
     if curriculum == "random":
-        shuffle = True
         train_dataset, val_dataset = torch.utils.data.random_split(
             dataset, [train_size, val_size]
         )
     elif curriculum == "ordered":
-        shuffle = False
-        train_dataset = dataset[:train_size]
-        val_dataset = dataset[train_size:]
+        train_dataset, val_dataset = dataset[:train_size], dataset[train_size:]
     elif curriculum == "domain_separated":
-        if "binary" not in operation:
-            # Existing domain separated logic
-            shuffle = False
-            threshold = ceil(max_number * training_fraction)
-            x = inputs[:, 0]
-            y = inputs[:, 2]
-            mask_train = (x < threshold) & (y < threshold)
-            mask_val = ~mask_train
-            train_dataset = torch.utils.data.TensorDataset(
-                inputs[mask_train], labels[mask_train]
-            )
-            val_dataset = torch.utils.data.TensorDataset(
-                inputs[mask_val], labels[mask_val]
-            )
-        else:
-            # For binary addition, use a different strategy or default to random
-            shuffle = True
-            train_dataset, val_dataset = torch.utils.data.random_split(
-                dataset, [train_size, val_size]
-            )
+        # Implement domain separation logic if applicable
+        train_dataset, val_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size]
+        )
     else:
         raise ValueError(f"Unsupported curriculum: {curriculum}")
 
-    batch_size = min(batch_size, ceil(len(dataset) / 2))
+    # Placeholder tokens; adjust as necessary
+    op_token = 0
+    eq_token = 0
 
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=shuffle
-    )
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=shuffle
-    )
-
-    return train_loader, val_loader, op_token, eq_token, num_unique_tokens
+    return train_dataset, val_dataset, op_token, eq_token
