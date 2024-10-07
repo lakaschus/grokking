@@ -306,16 +306,28 @@ def train_sequence(
     Returns:
         Tuple containing outputs, loss, and accuracy.
     """
-    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
+    eq_positions = get_eq_positions(inputs)
     decoder_input = inputs[:, :-1]
     target = inputs[:, 1:]
-    output = model(decoder_input).transpose(
-        0, 1
-    )  # [batch_size, seq_len -1, num_tokens]
+    output = model(decoder_input).transpose(0, 1)
+    # [batch_size, seq_len -1, num_tokens]
     loss, acc = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
     return output, loss, acc
+
+
+def get_eq_positions(inputs: Tensor) -> Tensor:
+    """
+    Returns the positions of the "=" tokens in the input tensor.
+
+    Args:
+        inputs (Tensor): Input data.
+
+    Returns:
+        Tensor: Positions of the "=" tokens.
+    """
+    return (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
 
 
 def compute_sequence_loss_and_accuracy(
@@ -339,20 +351,45 @@ def compute_sequence_loss_and_accuracy(
         Tuple containing loss and accuracy.
     """
     batch_size, seq_len, num_tokens = output.size()
-    mask = torch.arange(seq_len, device=output.device).unsqueeze(0).expand(
-        batch_size, seq_len
-    ) > eq_positions.unsqueeze(1)
-    flat_output = output.contiguous().view(-1, num_tokens)
-    flat_target = target.contiguous().view(-1)
-    mask_flat = mask.view(-1)
-
-    masked_output = flat_output[mask_flat]
-    masked_target = flat_target[mask_flat]
+    mask = create_mask_from_positions(seq_len, batch_size, eq_positions, output.device)
+    masked_output = mask_tensor(output, mask)
+    masked_target = mask_tensor(target, mask)
 
     loss = criterion(masked_output, masked_target)
     preds = torch.argmax(masked_output, dim=1)
     acc = (preds == masked_target).float().mean()
     return loss, acc
+
+
+def generate_flat_tensors(inputs: Tensor) -> Tuple[Tensor, Tensor]:
+    # depending on the dimensions of the inputs, we need to flatten the inputs
+    if len(inputs.shape) == 3:
+        batch_size, seq_len, num_tokens = inputs.size()
+        flat_inputs = inputs.contiguous().view(-1, num_tokens)
+    else:
+        flat_inputs = inputs.contiguous().view(-1)
+    return flat_inputs
+
+
+def create_mask_from_positions(seq_len, batch_size, positions, device) -> Tensor:
+    mask = torch.arange(seq_len, device=device).unsqueeze(0).expand(
+        batch_size, seq_len
+    ) > positions.unsqueeze(1)
+    return mask
+
+
+def mask_tensor(tensor: Tensor, mask: Tensor) -> Tensor:
+    """
+    Masks a tensor.
+
+    Args:
+        tensor (Tensor): The tensor to mask.
+        mask (Tensor): The mask to apply.
+
+    Returns:
+        Tensor: The masked tensor.
+    """
+    return tensor[mask]
 
 
 def log_training_metrics(acc: torch.Tensor, loss: torch.Tensor) -> None:
