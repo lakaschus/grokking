@@ -6,9 +6,8 @@ from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 import wandb
 from torch import Tensor
-from wandb import Table
+from typing import Dict, Any, Tuple, List
 import json
-from typing import Dict, Any, Tuple
 
 from data import get_data, BINARY_TOKENS
 from model import Transformer
@@ -26,7 +25,7 @@ def export_dataloader_data(dataloader: DataLoader, filename: str) -> None:
     save_to_json(all_inputs, all_labels, filename)
 
 
-def extract_data(dataloader: DataLoader) -> Tuple[list, list]:
+def extract_data(dataloader: DataLoader) -> Tuple[List[List[int]], List[List[int]]]:
     """
     Extracts inputs and labels from a DataLoader.
 
@@ -44,13 +43,15 @@ def extract_data(dataloader: DataLoader) -> Tuple[list, list]:
     return all_inputs, all_labels
 
 
-def save_to_json(inputs: list, labels: list, filename: str) -> None:
+def save_to_json(
+    inputs: List[List[int]], labels: List[List[int]], filename: str
+) -> None:
     """
     Saves inputs and labels to a JSON file.
 
     Args:
-        inputs (list): list of input sequences.
-        labels (list): list of label sequences.
+        inputs (List[List[int]]): List of input sequences.
+        labels (List[List[int]]): List of label sequences.
         filename (str): The filename to save the data.
     """
     data = {"inputs": inputs, "labels": labels}
@@ -104,11 +105,11 @@ def main(args: Dict[str, Any]) -> None:
     best_val_acc = 0.0
 
     for epoch in tqdm(range(num_epochs), desc="Epochs"):
-        train(model, train_loader, optimizer, scheduler, device, config)
-        val_acc, val_loss = evaluate(model, val_loader, device, epoch, config)
+        train_metrics = train(model, train_loader, optimizer, scheduler, device, config)
+        val_metrics = evaluate(model, val_loader, device, epoch, config)
 
         best_val_acc = save_best_model(
-            val_acc,
+            val_metrics["accuracy"],
             best_val_acc,
             model,
             optimizer,
@@ -206,7 +207,7 @@ def train(
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     device: torch.device,
     config: Any,
-) -> None:
+) -> Dict[str, float]:
     """
     Trains the model for one epoch.
 
@@ -217,6 +218,9 @@ def train(
         scheduler (torch.optim.lr_scheduler.LRScheduler): Learning rate scheduler.
         device (torch.device): Device to run the training on.
         config (Any): Configuration parameters.
+
+    Returns:
+        Dict containing training metrics.
     """
     model.train()
     criterion = get_criterion(config)
@@ -239,7 +243,9 @@ def train(
         log_training_metrics(acc, loss)
 
         if wandb.run.step >= config.num_steps:
-            return
+            break
+
+    return {"accuracy": acc.item(), "loss": loss.item()}
 
 
 def get_criterion(config: Any) -> torch.nn.Module:
@@ -260,7 +266,7 @@ def get_criterion(config: Any) -> torch.nn.Module:
 
 def train_classification(
     model: Transformer, inputs: Tensor, labels: Tensor, criterion: torch.nn.Module
-) -> Tuple[Any, torch.Tensor, torch.Tensor]:
+) -> Tuple[Tensor, torch.Tensor, torch.Tensor]:
     """
     Performs a training step for classification tasks.
 
@@ -286,7 +292,7 @@ def train_sequence(
     labels: Tensor,
     criterion: torch.nn.Module,
     config: Any,
-) -> Tuple[Any, torch.Tensor, torch.Tensor]:
+) -> Tuple[Tensor, torch.Tensor, torch.Tensor]:
     """
     Performs a training step for sequence tasks.
 
@@ -371,7 +377,7 @@ def evaluate(
     device: torch.device,
     epoch: int,
     config: Any,
-) -> Tuple[float, float]:
+) -> Dict[str, float]:
     """
     Evaluates the model on the validation set.
 
@@ -383,7 +389,7 @@ def evaluate(
         config (Any): Configuration parameters.
 
     Returns:
-        Tuple containing validation accuracy and loss.
+        Dict containing validation accuracy and loss.
     """
     model.eval()
     criterion = get_evaluation_criterion(config)
@@ -418,7 +424,7 @@ def evaluate(
     log_evaluation_metrics(examples_table, accuracy, avg_loss, epoch)
     log_model_parameters_conditionally(model, config)
 
-    return accuracy, avg_loss
+    return {"accuracy": accuracy, "loss": avg_loss}
 
 
 def get_evaluation_criterion(config: Any) -> torch.nn.Module:
@@ -497,27 +503,30 @@ def evaluate_sequence(
 
 
 def collect_validation_examples(
-    model, inputs: Tensor, labels: Tensor, config: Any
-) -> list[list[str]]:
+    model: Transformer, inputs: Tensor, labels: Tensor, config: Any
+) -> List[List[str]]:
     """
     Collects examples for visualization.
 
     Args:
+        model (Transformer): The model.
         inputs (Tensor): Input data.
         labels (Tensor): Labels.
         config (Any): Configuration parameters.
 
     Returns:
-        list of examples in the format [input, prediction, truth].
+        List of examples in the format [input, prediction, truth].
     """
     examples = []
     input_example = str(list(inputs[0].cpu().numpy()))
     if config.task_type == "classification":
-        predicted_output = str(torch.argmax(model(inputs)[-1, :, :], dim=1)[0].item())
+        output = model(inputs)[-1, :, :]
+        preds = torch.argmax(output, dim=1)
+        predicted_output = str(preds[0].item())
         true_output = str(labels[0].item())
     else:  # sequence
-        # Assuming evaluate_sequence has been called and preds are available
-        # Placeholder for actual prediction logic
+        # For sequences, you might need to implement actual prediction logic
+        # Here, we'll simulate it for testing purposes
         predicted_output = "predicted_sequence"
         true_output = "true_sequence"
     examples.append([input_example, predicted_output, true_output])
@@ -525,13 +534,13 @@ def collect_validation_examples(
 
 
 def log_evaluation_metrics(
-    examples: list[list[str]], accuracy: float, loss: float, epoch: int
+    examples: List[List[str]], accuracy: float, loss: float, epoch: int
 ) -> None:
     """
     Logs evaluation metrics and examples to wandb.
 
     Args:
-        examples (list[list[str]]): list of examples for visualization.
+        examples (List[List[str]]): List of examples for visualization.
         accuracy (float): Validation accuracy.
         loss (float): Validation loss.
         epoch (int): Current epoch number.
@@ -556,7 +565,7 @@ def log_model_parameters_conditionally(model: Transformer, config: Any) -> None:
         model (Transformer): The model.
         config (Any): Configuration parameters.
     """
-    if wandb.run.step % 50 == 0:
+    if wandb.run.step % 10 == 0:
         log_model_parameters_wandb(model)
 
 
@@ -564,13 +573,13 @@ def save_best_model(
     val_acc: float,
     best_val_acc: float,
     model: Transformer,
-    optimizer,
+    optimizer: torch.optim.Optimizer,
     config: Any,
     epoch: int,
     op_token: int,
     eq_token: int,
     max_sequence_length: int,
-) -> Tuple[float, str]:
+) -> float:
     """
     Saves the model if validation accuracy improves.
 
@@ -578,6 +587,7 @@ def save_best_model(
         val_acc (float): Current validation accuracy.
         best_val_acc (float): Best validation accuracy so far.
         model (Transformer): The model to save.
+        optimizer (torch.optim.Optimizer): Optimizer.
         config (Any): Configuration parameters.
         epoch (int): Current epoch number.
         op_token (int): Operation token.
@@ -585,7 +595,7 @@ def save_best_model(
         max_sequence_length (int): Maximum sequence length.
 
     Returns:
-        Tuple containing updated best_val_acc and the model filename.
+        Updated best_val_acc.
     """
     if val_acc > best_val_acc:
         best_val_acc = val_acc
@@ -608,7 +618,7 @@ def save_best_model(
 
 def create_checkpoint(
     model: Transformer,
-    optimizer,
+    optimizer: torch.optim.Optimizer,
     config: Any,
     epoch: int,
     model_config: Dict[str, Any],
@@ -620,6 +630,7 @@ def create_checkpoint(
 
     Args:
         model (Transformer): The model.
+        optimizer (torch.optim.Optimizer): Optimizer.
         config (Any): Configuration parameters.
         epoch (int): Current epoch number.
         model_config (Dict[str, Any]): Model configuration.
