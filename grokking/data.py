@@ -159,6 +159,7 @@ def get_data(
     if operation in ALL_OPERATIONS and "binary" not in operation:
         inputs, labels, op_token, eq_token = operation_mod_p_data(operation, max_number)
         num_unique_tokens = eq_token + 1
+        dataset = TensorDataset(inputs, labels)
     elif "binary" in operation:
         inputs, labels, op_token, eq_token = binary_addition_data(
             variable_length=True, num_samples=None, max_bit_length=max_number
@@ -168,14 +169,11 @@ def get_data(
             torch.tensor(inputs_padded), torch.tensor(labels_padded)
         )
         num_unique_tokens = BINARY_TOKENS["<EOS>"] + 1
-        return (
-            create_data_loaders(dataset, training_fraction, batch_size, curriculum),
-            num_unique_tokens,
-        )
+        op_token = BINARY_OP_TOKEN
+        eq_token = BINARY_EQ_TOKEN
     else:
         raise ValueError(f"Unsupported operation: {operation}")
 
-    dataset = TensorDataset(inputs, labels)
     return (
         create_data_loaders(dataset, training_fraction, batch_size, curriculum),
         op_token,

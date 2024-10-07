@@ -300,7 +300,7 @@ def train_sequence(
     Returns:
         Tuple containing outputs, loss, and accuracy.
     """
-    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_Tuple=True)[1]
+    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
     decoder_input = inputs[:, :-1]
     target = inputs[:, 1:]
     output = model(decoder_input).transpose(
@@ -336,8 +336,8 @@ def compute_sequence_loss_and_accuracy(
     mask = torch.arange(seq_len, device=output.device).unsqueeze(0).expand(
         batch_size, seq_len
     ) > eq_positions.unsqueeze(1)
-    flat_output = output.view(-1, num_tokens)
-    flat_target = target.view(-1)
+    flat_output = output.contiguous().view(-1, num_tokens)
+    flat_target = target.contiguous().view(-1)
     mask_flat = mask.view(-1)
 
     masked_output = flat_output[mask_flat]
@@ -481,7 +481,7 @@ def evaluate_sequence(
     Returns:
         Tuple containing loss, number of correct predictions, and number of samples.
     """
-    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_Tuple=True)[1]
+    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
     decoder_input = inputs[:, :-1]
     target = inputs[:, 1:]
     output = model(decoder_input).transpose(
@@ -556,7 +556,7 @@ def log_model_parameters_conditionally(model: Transformer, config: Any) -> None:
         model (Transformer): The model.
         config (Any): Configuration parameters.
     """
-    if wandb.run.step % 10 == 0:
+    if wandb.run.step % 50 == 0:
         log_model_parameters_wandb(model)
 
 
