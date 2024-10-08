@@ -89,7 +89,7 @@ def log_model_parameters_wandb(model: torch.nn.Module) -> None:
     """
     for name, param in model.named_parameters():
         param_np = param.detach().cpu().numpy()
-        wandb.log({f"parameters/{name}": wandb.Histogram(param_np)})
+        wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
 
 
 def clear_logs() -> None:
@@ -150,6 +150,19 @@ def main(args: Dict[str, Any]) -> None:
         # Optionally, you can break early if desired
 
 
+def count_parameters(model: torch.nn.Module) -> int:
+    """
+    Counts the total number of trainable parameters in the model.
+
+    Args:
+        model (torch.nn.Module): The model to count parameters for.
+
+    Returns:
+        int: Total number of trainable parameters.
+    """
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 def initialize_wandb(args: Dict[str, Any]) -> None:
     """
     Initializes Weights & Biases (wandb) for experiment tracking.
@@ -202,6 +215,10 @@ def initialize_model_optimizer_scheduler(
         num_tokens=num_unique_tokens,
         seq_len=seq_len,
     ).to(device)
+
+    total_params = count_parameters(model)
+    wandb.log({"total_parameters": total_params}, commit=False)
+
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=config.learning_rate,
@@ -435,7 +452,7 @@ def log_training_metrics(acc: torch.Tensor, loss: torch.Tensor) -> None:
         "training/loss": loss.item(),
         "step": wandb.run.step,
     }
-    wandb.log(metrics)
+    wandb.log(metrics, commit=False)
 
 
 def evaluate(
@@ -489,17 +506,17 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 50 == 0:
+    if wandb.run.step % 100 == 0:
         log_model_parameters_wandb(model)
         with open("logs/validation_examples.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
-    else:
-        metrics = {
-            "validation/accuracy": accuracy,
-            "validation/loss": avg_loss,
-            "epoch": epoch,
-        }
-        wandb.log(metrics, commit=False)
+
+    metrics = {
+        "validation/accuracy": accuracy,
+        "validation/loss": avg_loss,
+        "epoch": epoch,
+    }
+    wandb.log(metrics)
 
     return {"accuracy": accuracy, "loss": avg_loss}
 

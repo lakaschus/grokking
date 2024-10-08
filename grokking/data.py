@@ -34,6 +34,7 @@ BINARY_TOKENS = {
 # Update op_token and eq_token if necessary
 BINARY_OP_TOKEN = BINARY_TOKENS["+"]
 BINARY_EQ_TOKEN = BINARY_TOKENS["="]
+BINARY_PAD_TOKEN = BINARY_TOKENS["<PAD>"]
 
 
 def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, int]:
@@ -127,6 +128,7 @@ def encode_binary_sequences(
         label_seq = encode_label_sequence(c_bin)
         inputs.append(input_seq)
         labels.append(label_seq)
+
     return inputs, labels
 
 
@@ -175,7 +177,7 @@ def get_data(
         dataset = TensorDataset(
             torch.tensor(inputs_padded), torch.tensor(labels_padded)
         )
-        num_unique_tokens = BINARY_TOKENS["<EOS>"] + 1
+        num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
         op_token = BINARY_OP_TOKEN
         eq_token = BINARY_EQ_TOKEN
     else:
@@ -197,12 +199,12 @@ def pad_binary_sequences(
         for input_t, label_t in zip(inputs, labels)
     ]
     concatenated_inputs_padded = pad_sequence(
-        concatenated_inputs, batch_first=True, padding_value=BINARY_TOKENS["<EOS>"]
+        concatenated_inputs, batch_first=True, padding_value=BINARY_TOKENS["<PAD>"]
     )
     labels_padded = pad_sequence(
         [torch.tensor(seq) for seq in labels],
         batch_first=True,
-        padding_value=BINARY_TOKENS["<EOS>"],
+        padding_value=BINARY_TOKENS["<PAD>"],
     )
     return concatenated_inputs_padded, labels_padded
 
