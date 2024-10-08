@@ -92,6 +92,12 @@ def log_model_parameters_wandb(model: torch.nn.Module) -> None:
         wandb.log({f"parameters/{name}": wandb.Histogram(param_np)})
 
 
+def clear_logs() -> None:
+    # replace logs/validation_examples.json with an empty file
+    with open("logs/validation_examples.json", "w") as f:
+        f.write("")
+
+
 def main(args: Dict[str, Any]) -> None:
     """
     Main function to initialize training.
@@ -99,6 +105,7 @@ def main(args: Dict[str, Any]) -> None:
     Args:
         args (Dict[str, Any]): Configuration arguments.
     """
+    clear_logs()
     initialize_wandb(args)
     config = wandb.config
     device = torch.device(config.device)
@@ -280,7 +287,7 @@ def get_criterion(config: Any) -> torch.nn.Module:
         torch.nn.Module: The loss function.
     """
     if config.task_type == "sequence":
-        return torch.nn.CrossEntropyLoss(ignore_index=BINARY_TOKENS["<EOS>"])
+        return torch.nn.CrossEntropyLoss()
     else:
         return torch.nn.CrossEntropyLoss()
 
@@ -377,7 +384,9 @@ def compute_sequence_loss_and_accuracy(
     masked_target = mask_tensor(target, mask)
 
     loss = criterion(masked_output, masked_target)
+    # loss = criterion(output.transpose(1, 2), target)
     preds = torch.argmax(masked_output, dim=1)
+    # preds = torch.argmax(output.transpose(1, 2), dim=1)
     acc = (preds == masked_target).float().mean()
     return loss, acc
 
@@ -462,8 +471,6 @@ def evaluate(
                 total_loss, total_correct, total_samples = evaluate_classification(
                     model, inputs, labels, criterion
                 )
-                # Collect examples for classification if needed
-                # (Optional: Implement similar logic as below for classification examples)
             elif config.task_type == "sequence":
                 loss, acc, num_samples, preds, trues = evaluate_sequence(
                     model, inputs, labels, criterion, config
@@ -477,26 +484,15 @@ def evaluate(
                         model, inputs, labels, config, preds, trues
                     )
                 )
-            else:
-                raise ValueError(f"Unsupported task type: {config.task_type}")
 
     # Calculate average loss and accuracy
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    # Create wandb table for examples
-    columns = ["example", "prediction", "truth"]
-    wandb_table = wandb.Table(data=examples_table, columns=columns)
-
-    if wandb.run.step % 100 == 0:
+    if wandb.run.step % 50 == 0:
         log_model_parameters_wandb(model)
-        metrics = {
-            f"Examples_epoch_{epoch}": wandb_table,
-            "validation/accuracy": accuracy,
-            "validation/loss": avg_loss,
-            "epoch": epoch,
-        }
-        wandb.log(metrics, commit=False)
+        with open("logs/validation_examples.json", "a") as f:
+            json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
     else:
         metrics = {
             "validation/accuracy": accuracy,
@@ -581,15 +577,11 @@ def evaluate_sequence(
     # Get predicted tokens by taking the argmax
     preds = torch.argmax(output, dim=2)  # [batch_size, seq_len -1]
 
-    # Decode the predicted and true sequences
-    predicted_sequences = [decode_sequence(seq, ID_TO_TOKEN) for seq in preds]
-    true_sequences = [decode_sequence(seq, ID_TO_TOKEN) for seq in target]
-
     # Calculate the number of correct predictions
     correct = acc.item() * ((target != BINARY_TOKENS["<EOS>"]).sum().item())
     num_samples = (target != BINARY_TOKENS["<EOS>"]).sum().item()
 
-    return loss, acc, num_samples, predicted_sequences, true_sequences
+    return loss, acc, num_samples, preds, target
 
 
 def collect_validation_examples(
@@ -620,48 +612,14 @@ def collect_validation_examples(
         predicted_output = str(torch.argmax(model(inputs)[-1, :, :], dim=1)[0].item())
         true_output = str(labels[0].item())
     else:  # sequence
-        # Use the actual predicted and true sequences
-        predicted_output = preds[0]
-        true_output = trues[0]
+        split_pos = (inputs[0] == BINARY_TOKENS["="]).nonzero()[0][0]
+        predicted_output = decode_sequence(preds[0][split_pos:], ID_TO_TOKEN)
+        true_output = decode_sequence(trues[0][split_pos:], ID_TO_TOKEN)
 
-    examples.append([input_example, predicted_output, true_output])
+    examples.append(
+        {"example": input_example, "prediction": predicted_output, "truth": true_output}
+    )
     return examples
-
-
-def log_evaluation_metrics(
-    examples: List[List[str]], accuracy: float, loss: float, epoch: int
-) -> None:
-    """
-    Logs evaluation metrics and examples to wandb.
-
-    Args:
-        examples (List[List[str]]): List of examples for visualization.
-        accuracy (float): Validation accuracy.
-        loss (float): Validation loss.
-        epoch (int): Current epoch number.
-    """
-    columns = ["example", "prediction", "truth"]
-    wandb_table = wandb.Table(data=examples, columns=columns)
-
-    metrics = {
-        f"Examples_epoch_{epoch}": wandb_table,
-        "validation/accuracy": accuracy,
-        "validation/loss": loss,
-        "epoch": epoch,
-    }
-    wandb.log(metrics, commit=False)
-
-
-def log_model_parameters_conditionally(model: Transformer, config: Any) -> None:
-    """
-    Logs model parameters to wandb conditionally.
-
-    Args:
-        model (Transformer): The model.
-        config (Any): Configuration parameters.
-    """
-    if wandb.run.step % 50 == 0:
-        log_model_parameters_wandb(model)
 
 
 def save_best_model(
