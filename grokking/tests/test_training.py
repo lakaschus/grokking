@@ -1,8 +1,7 @@
 import pytest
 import torch
 import types
-import numpy as np
-
+from torch.nn.utils.rnn import pad_sequence
 
 from training import (
     train_classification,
@@ -76,13 +75,20 @@ def two_dim_labels():
 
 def test_get_eq_positions(two_dim_tensor):
     eq_pos = get_eq_positions(two_dim_tensor)
-    assert eq_pos.tolist() == [4, 3]
+    assert eq_pos.tolist() == [3, 2]
 
 
 def test_create_mask_from_positions():
+    # corresponds to mask at token 5
     eq_pos = torch.tensor([4, 3], device=torch.device("cuda"))
-    mask = create_mask_from_positions(8, 2, eq_pos, torch.device("cuda"))
-    assert mask.int().tolist() == [[0, 0, 0, 0, 0, 1, 1, 1], [0, 0, 0, 0, 1, 1, 1, 1]]
+    tens = torch.tensor(
+        [[1, 2, 3, 4, 5, 6, 7, 8], [2, 3, 4, 5, 6, 7, 8, 9]],
+        device=torch.device("cuda"),
+    )
+    mask = create_mask_from_positions(
+        tens.shape[1], tens.shape[0], eq_pos, torch.device("cuda")
+    )
+    assert tens[mask].tolist() == [6, 7, 8, 6, 7, 8, 9]
 
 
 def test_generate_flat_tensors(two_dim_tensor, three_dim_tensor):
@@ -133,3 +139,13 @@ def test_get_criterion(config_sequence, three_dim_tensor, two_dim_labels):
     # assert abs(loss1_flat - loss2_flat) < 0.1
     assert abs(loss1 - loss1_flat) < 0.01
     assert abs(loss2 - loss2_flat) < 0.01
+
+
+def test_pad_sequence():
+    a = torch.ones(3, 2)
+    b = torch.ones(2, 2)
+    c = torch.ones(1, 2)
+    padded_seq = pad_sequence([a, b, c], padding_value=0)
+    assert padded_seq.size() == (3, 3, 2)
+    assert padded_seq[0, 0, 0] == 1
+    assert padded_seq[1, -1, 0] == 0

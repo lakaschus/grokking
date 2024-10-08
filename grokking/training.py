@@ -355,7 +355,7 @@ def get_eq_positions(inputs: Tensor) -> Tensor:
     Returns:
         Tensor: Positions of the "=" tokens.
     """
-    return (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
+    return (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1] - 1
 
 
 def compute_sequence_loss_and_accuracy(
@@ -578,8 +578,8 @@ def evaluate_sequence(
     preds = torch.argmax(output, dim=2)  # [batch_size, seq_len -1]
 
     # Calculate the number of correct predictions
-    correct = acc.item() * ((target != BINARY_TOKENS["<EOS>"]).sum().item())
-    num_samples = (target != BINARY_TOKENS["<EOS>"]).sum().item()
+    correct = acc.item() * len(target)
+    num_samples = len(target)
 
     return loss, acc, num_samples, preds, target
 

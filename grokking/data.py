@@ -22,7 +22,14 @@ ALL_OPERATIONS = {
     **ALL_MODULO_OPERATIONS,
 }
 
-BINARY_TOKENS = {"0": 0, "1": 1, "+": 2, "=": 3, "<EOS>": 4}  # Example token index
+BINARY_TOKENS = {
+    "0": 0,
+    "1": 1,
+    "+": 2,
+    "=": 3,
+    "<EOS>": 4,
+    "<PAD>": 5,
+}  # Example token index
 
 # Update op_token and eq_token if necessary
 BINARY_OP_TOKEN = BINARY_TOKENS["+"]
