@@ -12,6 +12,27 @@ import json
 from data import get_data, BINARY_TOKENS
 from model import Transformer
 
+# Add these at the top of training.py after imports
+
+from typing import List, Dict
+
+# Create a reverse mapping from token IDs to tokens
+ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
+
+
+def decode_sequence(sequence: Tensor, id_to_token: Dict[int, str]) -> str:
+    """
+    Decodes a sequence of token IDs into a string.
+
+    Args:
+        sequence (Tensor): Tensor of token IDs.
+        id_to_token (Dict[int, str]): Mapping from token IDs to tokens.
+
+    Returns:
+        str: Decoded string sequence.
+    """
+    return "".join([id_to_token.get(token_id, "?") for token_id in sequence.tolist()])
+
 
 def export_dataloader_data(dataloader: DataLoader, filename: str) -> None:
     """
@@ -414,7 +435,7 @@ def evaluate(
     device: torch.device,
     epoch: int,
     config: Any,
-) -> Dict[str, float]:
+) -> Tuple[float, float]:
     """
     Evaluates the model on the validation set.
 
@@ -426,7 +447,7 @@ def evaluate(
         config (Any): Configuration parameters.
 
     Returns:
-        Dict containing validation accuracy and loss.
+        Tuple containing validation accuracy and loss.
     """
     model.eval()
     criterion = get_evaluation_criterion(config)
@@ -438,28 +459,51 @@ def evaluate(
         for batch in val_loader:
             inputs, labels = [tensor.to(device) for tensor in batch]
             if config.task_type == "classification":
-                loss, correct, samples = evaluate_classification(
+                total_loss, total_correct, total_samples = evaluate_classification(
                     model, inputs, labels, criterion
                 )
+                # Collect examples for classification if needed
+                # (Optional: Implement similar logic as below for classification examples)
             elif config.task_type == "sequence":
-                loss, correct, samples = evaluate_sequence(
+                loss, acc, num_samples, preds, trues = evaluate_sequence(
                     model, inputs, labels, criterion, config
+                )
+                total_loss += loss.item() * inputs.size(0)
+                total_correct += acc * num_samples
+                total_samples += num_samples
+                # Collect validation examples with actual predictions
+                examples_table.extend(
+                    collect_validation_examples(
+                        model, inputs, labels, config, preds, trues
+                    )
                 )
             else:
                 raise ValueError(f"Unsupported task type: {config.task_type}")
 
-            total_loss += loss * inputs.size(0)
-            total_correct += correct
-            total_samples += samples
-            examples_table.extend(
-                collect_validation_examples(model, inputs, labels, config)
-            )
-
+    # Calculate average loss and accuracy
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    log_evaluation_metrics(examples_table, accuracy, avg_loss, epoch)
-    log_model_parameters_conditionally(model, config)
+    # Create wandb table for examples
+    columns = ["example", "prediction", "truth"]
+    wandb_table = wandb.Table(data=examples_table, columns=columns)
+
+    if wandb.run.step % 100 == 0:
+        log_model_parameters_wandb(model)
+        metrics = {
+            f"Examples_epoch_{epoch}": wandb_table,
+            "validation/accuracy": accuracy,
+            "validation/loss": avg_loss,
+            "epoch": epoch,
+        }
+        wandb.log(metrics, commit=False)
+    else:
+        metrics = {
+            "validation/accuracy": accuracy,
+            "validation/loss": avg_loss,
+            "epoch": epoch,
+        }
+        wandb.log(metrics, commit=False)
 
     return {"accuracy": accuracy, "loss": avg_loss}
 
@@ -477,7 +521,7 @@ def get_evaluation_criterion(config: Any) -> torch.nn.Module:
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
-        return torch.nn.CrossEntropyLoss(ignore_index=BINARY_TOKENS["<EOS>"])
+        return torch.nn.CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported task type: {config.task_type}")
 
@@ -510,19 +554,19 @@ def evaluate_sequence(
     labels: Tensor,
     criterion: torch.nn.Module,
     config: Any,
-) -> Tuple[float, float, int]:
+) -> Tuple[float, float, int, List[str], List[str]]:
     """
-    Evaluates sequence performance on a batch.
+    Evaluates the model on a sequence task.
 
     Args:
-        model (Transformer): The model.
+        model (Transformer): The model to evaluate.
         inputs (Tensor): Input data.
         labels (Tensor): Labels.
         criterion (torch.nn.Module): Loss function.
         config (Any): Configuration parameters.
 
     Returns:
-        Tuple containing loss, number of correct predictions, and number of samples.
+        Tuple containing loss, accuracy, number of samples, predicted sequences, and true sequences.
     """
     eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
     decoder_input = inputs[:, :-1]
@@ -534,38 +578,52 @@ def evaluate_sequence(
         output, target, eq_positions, criterion, config
     )
 
+    # Get predicted tokens by taking the argmax
+    preds = torch.argmax(output, dim=2)  # [batch_size, seq_len -1]
+
+    # Decode the predicted and true sequences
+    predicted_sequences = [decode_sequence(seq, ID_TO_TOKEN) for seq in preds]
+    true_sequences = [decode_sequence(seq, ID_TO_TOKEN) for seq in target]
+
+    # Calculate the number of correct predictions
     correct = acc.item() * ((target != BINARY_TOKENS["<EOS>"]).sum().item())
-    samples = (target != BINARY_TOKENS["<EOS>"]).sum().item()
-    return loss, correct, samples
+    num_samples = (target != BINARY_TOKENS["<EOS>"]).sum().item()
+
+    return loss, acc, num_samples, predicted_sequences, true_sequences
 
 
 def collect_validation_examples(
-    model: Transformer, inputs: Tensor, labels: Tensor, config: Any
+    model,
+    inputs: Tensor,
+    labels: Tensor,
+    config: Any,
+    preds: List[str],
+    trues: List[str],
 ) -> List[List[str]]:
     """
     Collects examples for visualization.
 
     Args:
-        model (Transformer): The model.
         inputs (Tensor): Input data.
         labels (Tensor): Labels.
         config (Any): Configuration parameters.
+        preds (List[str]): Predicted sequences.
+        trues (List[str]): True sequences.
 
     Returns:
         List of examples in the format [input, prediction, truth].
     """
     examples = []
-    input_example = str(list(inputs[0].cpu().numpy()))
+    input_example = decode_sequence(inputs[0], ID_TO_TOKEN)
+
     if config.task_type == "classification":
-        output = model(inputs)[-1, :, :]
-        preds = torch.argmax(output, dim=1)
-        predicted_output = str(preds[0].item())
+        predicted_output = str(torch.argmax(model(inputs)[-1, :, :], dim=1)[0].item())
         true_output = str(labels[0].item())
     else:  # sequence
-        # For sequences, you might need to implement actual prediction logic
-        # Here, we'll simulate it for testing purposes
-        predicted_output = "predicted_sequence"
-        true_output = "true_sequence"
+        # Use the actual predicted and true sequences
+        predicted_output = preds[0]
+        true_output = trues[0]
+
     examples.append([input_example, predicted_output, true_output])
     return examples
 
@@ -602,7 +660,7 @@ def log_model_parameters_conditionally(model: Transformer, config: Any) -> None:
         model (Transformer): The model.
         config (Any): Configuration parameters.
     """
-    if wandb.run.step % 10 == 0:
+    if wandb.run.step % 50 == 0:
         log_model_parameters_wandb(model)
 
 
