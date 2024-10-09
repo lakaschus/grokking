@@ -21,41 +21,15 @@ ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
 
 
 def decode_sequence(sequence: Tensor, id_to_token: Dict[int, str]) -> str:
-    """
-    Decodes a sequence of token IDs into a string.
-
-    Args:
-        sequence (Tensor): Tensor of token IDs.
-        id_to_token (Dict[int, str]): Mapping from token IDs to tokens.
-
-    Returns:
-        str: Decoded string sequence.
-    """
     return "".join([id_to_token.get(token_id, "?") for token_id in sequence.tolist()])
 
 
 def export_dataloader_data(dataloader: DataLoader, filename: str) -> None:
-    """
-    Extracts all inputs and labels from a DataLoader and saves them to a JSON file.
-
-    Args:
-        dataloader (DataLoader): The DataLoader to extract data from.
-        filename (str): The filename to save the extracted data.
-    """
     all_inputs, all_labels = extract_data(dataloader)
     save_to_json(all_inputs, all_labels, filename)
 
 
 def extract_data(dataloader: DataLoader) -> Tuple[List[List[int]], List[List[int]]]:
-    """
-    Extracts inputs and labels from a DataLoader.
-
-    Args:
-        dataloader (DataLoader): The DataLoader to extract data from.
-
-    Returns:
-        Tuple containing lists of inputs and labels.
-    """
     all_inputs, all_labels = [], []
     for batch in tqdm(dataloader, desc="Extracting data"):
         inputs, labels = [tensor.to("cpu") for tensor in batch]
@@ -67,26 +41,12 @@ def extract_data(dataloader: DataLoader) -> Tuple[List[List[int]], List[List[int
 def save_to_json(
     inputs: List[List[int]], labels: List[List[int]], filename: str
 ) -> None:
-    """
-    Saves inputs and labels to a JSON file.
-
-    Args:
-        inputs (List[List[int]]): List of input sequences.
-        labels (List[List[int]]): List of label sequences.
-        filename (str): The filename to save the data.
-    """
     data = {"inputs": inputs, "labels": labels}
     with open(filename, "w") as f:
         json.dump(data, f)
 
 
 def log_model_parameters_wandb(model: torch.nn.Module) -> None:
-    """
-    Logs model parameters to wandb as histograms.
-
-    Args:
-        model (torch.nn.Module): The model whose parameters are to be logged.
-    """
     for name, param in model.named_parameters():
         param_np = param.detach().cpu().numpy()
         wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
@@ -99,12 +59,6 @@ def clear_logs() -> None:
 
 
 def main(args: Dict[str, Any]) -> None:
-    """
-    Main function to initialize training.
-
-    Args:
-        args (Dict[str, Any]): Configuration arguments.
-    """
     clear_logs()
     initialize_wandb(args)
     config = wandb.config
@@ -151,25 +105,10 @@ def main(args: Dict[str, Any]) -> None:
 
 
 def count_parameters(model: torch.nn.Module) -> int:
-    """
-    Counts the total number of trainable parameters in the model.
-
-    Args:
-        model (torch.nn.Module): The model to count parameters for.
-
-    Returns:
-        int: Total number of trainable parameters.
-    """
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def initialize_wandb(args: Dict[str, Any]) -> None:
-    """
-    Initializes Weights & Biases (wandb) for experiment tracking.
-
-    Args:
-        args (Dict[str, Any]): Configuration arguments.
-    """
     wandb.init(project="grokking", config=args)
     config = wandb.config
     wandb.define_metric("step")
@@ -181,33 +120,12 @@ def initialize_wandb(args: Dict[str, Any]) -> None:
 
 
 def get_max_sequence_length(train_loader: DataLoader) -> int:
-    """
-    Retrieves the maximum sequence length from the training dataset.
-
-    Args:
-        train_loader (DataLoader): The training DataLoader.
-
-    Returns:
-        int: The maximum sequence length.
-    """
     return len(train_loader.dataset[0][0])
 
 
 def initialize_model_optimizer_scheduler(
     config: Any, num_unique_tokens: int, seq_len: int, device: torch.device
 ) -> Tuple[Transformer, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
-    """
-    Initializes the model, optimizer, and scheduler.
-
-    Args:
-        config (Any): Configuration parameters.
-        num_unique_tokens (int): Number of unique tokens.
-        seq_len (int): Maximum sequence length.
-        device (torch.device): Device to run the model on.
-
-    Returns:
-        Tuple containing the model, optimizer, and scheduler.
-    """
     model = Transformer(
         num_layers=config.num_layers,
         dim_model=config.dim_model,
@@ -506,7 +424,7 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 100 == 0:
+    if wandb.run.step % 200 == 0:
         log_model_parameters_wandb(model)
         with open("logs/validation_examples.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
