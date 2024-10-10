@@ -269,11 +269,9 @@ def train_sequence(
     Returns:
         Tuple containing outputs, loss, and accuracy.
     """
-    eq_positions = get_eq_positions(inputs)
-    decoder_input = inputs[:, :-1]
-    target = inputs[:, 1:]
-    output = model(decoder_input).transpose(0, 1)
-    # [batch_size, seq_len -1, num_tokens]
+    output, target, eq_positions = get_logits(
+        model, inputs
+    )  # [batch_size, seq_len -1, num_tokens]
     loss, acc = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
@@ -479,6 +477,14 @@ def evaluate_classification(
     return loss, correct, len(labels)
 
 
+def get_logits(model: Transformer, inputs: Tensor) -> Tensor:
+    eq_positions = get_eq_positions(inputs)
+    decoder_input = inputs[:, :-1]
+    target = inputs[:, 1:]
+    output = model(decoder_input).transpose(0, 1)
+    return output, target, eq_positions
+
+
 def evaluate_sequence(
     model: Transformer,
     inputs: Tensor,
@@ -499,12 +505,7 @@ def evaluate_sequence(
     Returns:
         Tuple containing loss, accuracy, number of samples, predicted sequences, and true sequences.
     """
-    eq_positions = (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1]
-    decoder_input = inputs[:, :-1]
-    target = inputs[:, 1:]
-    output = model(decoder_input).transpose(
-        0, 1
-    )  # [batch_size, seq_len -1, num_tokens]
+    output, target, eq_positions = get_logits(model, inputs)
     loss, acc = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
@@ -553,7 +554,12 @@ def collect_validation_examples(
     match = True if predicted_output == true_output else False
 
     examples.append(
-        {"example": input_example, "prediction": predicted_output, "truth": true_output, "match": match}
+        {
+            "example": input_example,
+            "prediction": predicted_output,
+            "truth": true_output,
+            "match": match,
+        }
     )
     return examples
 
