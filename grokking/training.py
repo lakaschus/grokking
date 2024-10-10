@@ -550,9 +550,10 @@ def collect_validation_examples(
         split_pos = (inputs[0] == BINARY_TOKENS["="]).nonzero()[0][0]
         predicted_output = decode_sequence(preds[0][split_pos:], ID_TO_TOKEN)
         true_output = decode_sequence(trues[0][split_pos:], ID_TO_TOKEN)
+    match = True if predicted_output == true_output else False
 
     examples.append(
-        {"example": input_example, "prediction": predicted_output, "truth": true_output}
+        {"example": input_example, "prediction": predicted_output, "truth": true_output, "match": match}
     )
     return examples
 
