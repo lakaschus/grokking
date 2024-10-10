@@ -424,7 +424,7 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 200 == 0:
+    if wandb.run.step % 500 == 0:
         log_model_parameters_wandb(model)
         with open("logs/validation_examples.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
