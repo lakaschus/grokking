@@ -1,609 +1,361 @@
 {
-    "Step 80": [
-        {
-            "example": "111+1001=10000<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "101001<EOS><EOS><EOS><EOS>",
-            "truth": "10000<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 130": [
-        {
-            "example": "111+1001=10000<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "100001<EOS><EOS><EOS><EOS>",
-            "truth": "10000<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 180": [
-        {
-            "example": "11111+11101=111100<EOS>",
-            "prediction": "<EOS>10111<EOS>",
-            "truth": "111100<EOS>"
-        }
-    ]
-}{
-    "Step 230": [
-        {
-            "example": "110+1000=1110<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0000<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1110<EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 280": [
-        {
-            "example": "10001+0=10001<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0100<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10001<EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 330": [
-        {
-            "example": "10101+10=10111<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0001<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10111<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 380": [
-        {
-            "example": "10010+1100=11110<EOS><EOS><EOS>",
-            "prediction": "<EOS>0000<EOS><EOS><EOS>",
-            "truth": "11110<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 430": [
-        {
-            "example": "1010+11111=101001<EOS><EOS>",
-            "prediction": "<EOS>00000<EOS><EOS>",
-            "truth": "101001<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 480": [
-        {
-            "example": "11111+110=100101<EOS><EOS><EOS>",
-            "prediction": "<EOS>10000<EOS><EOS><EOS>",
-            "truth": "100101<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 530": [
-        {
-            "example": "1001+1=1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>000<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 580": [
-        {
-            "example": "11000+10010=101010<EOS>",
-            "prediction": "<EOS>01110<EOS>",
-            "truth": "101010<EOS>"
-        }
-    ]
-}{
-    "Step 630": [
-        {
-            "example": "11+1000=1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>101<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 680": [
-        {
-            "example": "11000+10000=101000<EOS>",
-            "prediction": "<EOS>01010<EOS>",
-            "truth": "101000<EOS>"
-        }
-    ]
-}{
-    "Step 730": [
-        {
-            "example": "110+101=1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>001<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 780": [
-        {
-            "example": "1100+111=10011<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0001<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10011<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 830": [
-        {
-            "example": "1000+1000=10000<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0100<EOS><EOS><EOS><EOS>",
-            "truth": "10000<EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 880": [
-        {
-            "example": "1010+10001=11011<EOS><EOS><EOS>",
-            "prediction": "<EOS>1011<EOS><EOS><EOS>",
-            "truth": "11011<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 930": [
-        {
-            "example": "1101+100=10001<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0010<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10001<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 980": [
-        {
-            "example": "1010+11001=100011<EOS><EOS>",
-            "prediction": "<EOS>00010<EOS><EOS>",
-            "truth": "100011<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1030": [
-        {
-            "example": "10100+10011=100111<EOS>",
-            "prediction": "<EOS>00101<EOS>",
-            "truth": "100111<EOS>"
-        }
-    ]
-}{
-    "Step 1080": [
-        {
-            "example": "10100+1111=100011<EOS><EOS>",
-            "prediction": "<EOS>00110<EOS><EOS>",
-            "truth": "100011<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1130": [
-        {
-            "example": "1111+1110=11101<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1011<EOS><EOS><EOS><EOS>",
-            "truth": "11101<EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1180": [
-        {
-            "example": "100+1011=1111<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0100<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1111<EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1230": [
-        {
-            "example": "10001+10010=100011<EOS>",
-            "prediction": "<EOS>00010<EOS>",
-            "truth": "100011<EOS>"
-        }
-    ]
-}{
-    "Step 1280": [
-        {
-            "example": "1101+1000=10101<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0110<EOS><EOS><EOS><EOS>",
-            "truth": "10101<EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1330": [
-        {
-            "example": "1+10=11<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>00<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "11<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1380": [
-        {
-            "example": "11000+10001=101001<EOS>",
-            "prediction": "<EOS>01001<EOS>",
-            "truth": "101001<EOS>"
-        }
-    ]
-}{
-    "Step 1430": [
-        {
-            "example": "10111+10010=101001<EOS>",
-            "prediction": "<EOS>01011<EOS>",
-            "truth": "101001<EOS>"
-        }
-    ]
-}{
-    "Step 1480": [
-        {
-            "example": "10+10101=10111<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1001<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10111<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1530": [
-        {
-            "example": "10000+11100=101100<EOS>",
-            "prediction": "<EOS>01101<EOS>",
-            "truth": "101100<EOS>"
-        }
-    ]
-}{
-    "Step 1580": [
-        {
-            "example": "11010+1100=100110<EOS><EOS>",
-            "prediction": "<EOS>00110<EOS><EOS>",
-            "truth": "100110<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1630": [
-        {
-            "example": "111+11=1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>000<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1680": [
-        {
-            "example": "1001+10010=11011<EOS><EOS><EOS>",
-            "prediction": "<EOS>1111<EOS><EOS><EOS>",
-            "truth": "11011<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1730": [
-        {
-            "example": "10001+10=10011<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1000<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10011<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1780": [
-        {
-            "example": "1+100=101<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>01<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "101<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 1830": [
-        {
-            "example": "11100+11001=110101<EOS>",
-            "prediction": "<EOS>10100<EOS>",
-            "truth": "110101<EOS>"
-        }
-    ]
-}{
-    "Step 1880": [
-        {
-            "example": "10011+10010=100101<EOS>",
-            "prediction": "<EOS>00100<EOS>",
-            "truth": "100101<EOS>"
-        }
-    ]
-}{
-    "Step 1930": [
-        {
-            "example": "11010+11011=110101<EOS>",
-            "prediction": "<EOS>10100<EOS>",
-            "truth": "110101<EOS>"
-        }
-    ]
-}{
-    "Step 1980": [
-        {
-            "example": "11011+10111=110010<EOS>",
-            "prediction": "<EOS>10011<EOS>",
-            "truth": "110010<EOS>"
-        }
-    ]
-}{
-    "Step 2030": [
-        {
-            "example": "11+10010=10101<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0001<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10101<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2080": [
-        {
-            "example": "1010+11111=101001<EOS><EOS>",
-            "prediction": "<EOS>01001<EOS><EOS>",
-            "truth": "101001<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2130": [
-        {
-            "example": "10001+1110=11111<EOS><EOS><EOS>",
-            "prediction": "<EOS>1111<EOS><EOS><EOS>",
-            "truth": "11111<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2180": [
-        {
-            "example": "10010+1100=11110<EOS><EOS><EOS>",
-            "prediction": "<EOS>1110<EOS><EOS><EOS>",
-            "truth": "11110<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2230": [
-        {
-            "example": "11010+11000=110010<EOS>",
-            "prediction": "<EOS>10010<EOS>",
-            "truth": "110010<EOS>"
-        }
-    ]
-}{
-    "Step 2280": [
-        {
-            "example": "1111+10111=100110<EOS><EOS>",
-            "prediction": "<EOS>00110<EOS><EOS>",
-            "truth": "100110<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2330": [
-        {
-            "example": "1111+11100=101011<EOS><EOS>",
-            "prediction": "<EOS>01111<EOS><EOS>",
-            "truth": "101011<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2380": [
-        {
-            "example": "1010+10110=100000<EOS><EOS>",
-            "prediction": "<EOS>00000<EOS><EOS>",
-            "truth": "100000<EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2430": [
-        {
-            "example": "110+11001=11111<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1111<EOS><EOS><EOS><EOS>",
-            "truth": "11111<EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2480": [
-        {
-            "example": "1101+100=10001<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0010<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10001<EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2530": [
-        {
-            "example": "10010+10000=100010<EOS>",
-            "prediction": "<EOS>00010<EOS>",
-            "truth": "100010<EOS>"
-        }
-    ]
-}{
-    "Step 2580": [
-        {
-            "example": "1+0=1<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2630": [
-        {
-            "example": "10000+1100=11100<EOS><EOS><EOS>",
-            "prediction": "<EOS>1101<EOS><EOS><EOS>",
-            "truth": "11100<EOS><EOS><EOS>"
-        }
-    ]
-}{
-    "Step 2680": [
-        {
-            "example": "101+1101=10010<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0011<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10010<EOS><EOS><EOS><EOS><EOS>"
+    "Step 0": [
+        {
+            "example": "10011+1001=010001<EOS><PAD><PAD><PAD><PAD>",
+            "prediction": "1<PAD>101010<PAD><PAD><PAD>",
+            "truth": "010001<EOS><PAD><PAD><PAD><PAD>",
+            "match": false
+        },
+        {
+            "example": "01101+00111=010011<EOS><PAD><PAD><PAD>",
+            "prediction": "10110111<PAD><PAD>",
+            "truth": "010011<EOS><PAD><PAD><PAD>",
+            "match": false
         }
     ]
 }{
-    "Step 2730": [
-        {
-            "example": "11010+11000=110010<EOS>",
-            "prediction": "<EOS>10010<EOS>",
-            "truth": "110010<EOS>"
+    "Step 11000": [
+        {
+            "example": "100101+11000=111101<EOS><PAD><PAD>",
+            "prediction": "111101<EOS><PAD><PAD>",
+            "truth": "111101<EOS><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "100000+111111=1011111<EOS>",
+            "prediction": "1011111<EOS>",
+            "truth": "1011111<EOS>",
+            "match": true
         }
     ]
 }{
-    "Step 2780": [
-        {
-            "example": "110+100=1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>101<EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1010<EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
+    "Step 500": [
+        {
+            "example": "1001+0101=11001<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "11001<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "11001<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "001001+11011=111111<EOS><PAD><PAD>",
+            "prediction": "111111<EOS><PAD><PAD>",
+            "truth": "111111<EOS><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 2830": [
-        {
-            "example": "11+11101=100000<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>00011<EOS><EOS><EOS><EOS>",
-            "truth": "100000<EOS><EOS><EOS><EOS>"
+    "Step 11500": [
+        {
+            "example": "110100+110010=1100110<EOS>",
+            "prediction": "1100110<EOS>",
+            "truth": "1100110<EOS>",
+            "match": true
+        },
+        {
+            "example": "110+110000=110110<EOS><PAD><PAD><PAD><PAD>",
+            "prediction": "110110<EOS><PAD><PAD><PAD><PAD>",
+            "truth": "110110<EOS><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 2880": [
-        {
-            "example": "1101+100=10001<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0010<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10001<EOS><EOS><EOS><EOS><EOS>"
+    "Step 1000": [
+        {
+            "example": "10101+01011=111101<EOS><PAD><PAD><PAD>",
+            "prediction": "111101<EOS><PAD><PAD><PAD>",
+            "truth": "111101<EOS><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "010001+100111=1101101<EOS>",
+            "prediction": "1101101<EOS>",
+            "truth": "1101101<EOS>",
+            "match": true
         }
     ]
 }{
-    "Step 2930": [
-        {
-            "example": "11000+11111=110111<EOS>",
-            "prediction": "<EOS>10110<EOS>",
-            "truth": "110111<EOS>"
+    "Step 12000": [
+        {
+            "example": "110000+11110=1001110<EOS><PAD>",
+            "prediction": "1001110<EOS><PAD>",
+            "truth": "1001110<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "111011+111111=1111010<EOS>",
+            "prediction": "1111010<EOS>",
+            "truth": "1111010<EOS>",
+            "match": true
         }
     ]
 }{
-    "Step 2980": [
-        {
-            "example": "10111+11010=110001<EOS>",
-            "prediction": "<EOS>10000<EOS>",
-            "truth": "110001<EOS>"
+    "Step 1500": [
+        {
+            "example": "10011+100011=0101001<EOS><PAD>",
+            "prediction": "0101001<EOS><PAD>",
+            "truth": "0101001<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "010001+101=111001<EOS><PAD><PAD><PAD><PAD>",
+            "prediction": "111001<EOS><PAD><PAD><PAD><PAD>",
+            "truth": "111001<EOS><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3030": [
-        {
-            "example": "1111+1110=11101<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1011<EOS><EOS><EOS><EOS>",
-            "truth": "11101<EOS><EOS><EOS><EOS>"
+    "Step 12500": [
+        {
+            "example": "101010+100101=1001111<EOS>",
+            "prediction": "1001111<EOS>",
+            "truth": "1001111<EOS>",
+            "match": true
+        },
+        {
+            "example": "11010+100=11110<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "11100<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "11110<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": false
         }
     ]
 }{
-    "Step 3080": [
-        {
-            "example": "11000+10001=101001<EOS>",
-            "prediction": "<EOS>01001<EOS>",
-            "truth": "101001<EOS>"
+    "Step 2000": [
+        {
+            "example": "01111+000101=0110001<EOS><PAD>",
+            "prediction": "0110001<EOS><PAD>",
+            "truth": "0110001<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "1111+000001=111101<EOS><PAD><PAD><PAD>",
+            "prediction": "111101<EOS><PAD><PAD><PAD>",
+            "truth": "111101<EOS><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3130": [
-        {
-            "example": "100+10010=10110<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0111<EOS><EOS><EOS><EOS>",
-            "truth": "10110<EOS><EOS><EOS><EOS>"
+    "Step 13000": [
+        {
+            "example": "111010+110100=1101110<EOS>",
+            "prediction": "1101110<EOS>",
+            "truth": "1101110<EOS>",
+            "match": true
+        },
+        {
+            "example": "11100+111011=1010111<EOS><PAD>",
+            "prediction": "1010111<EOS><PAD>",
+            "truth": "1010111<EOS><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3180": [
-        {
-            "example": "1111+1111=11110<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0000<EOS><EOS><EOS><EOS>",
-            "truth": "11110<EOS><EOS><EOS><EOS>"
+    "Step 2500": [
+        {
+            "example": "11001+010011=1010001<EOS><PAD>",
+            "prediction": "1010001<EOS><PAD>",
+            "truth": "1010001<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "010111+1=110111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "110111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "110111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3230": [
-        {
-            "example": "10100+10110=101010<EOS>",
-            "prediction": "<EOS>01011<EOS>",
-            "truth": "101010<EOS>"
+    "Step 13500": [
+        {
+            "example": "110110+111010=1110000<EOS>",
+            "prediction": "1110000<EOS>",
+            "truth": "1110000<EOS>",
+            "match": true
+        },
+        {
+            "example": "1101+101111=111100<EOS><PAD><PAD><PAD>",
+            "prediction": "111100<EOS><PAD><PAD><PAD>",
+            "truth": "111100<EOS><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3280": [
-        {
-            "example": "10010+1=10011<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0011<EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "10011<EOS><EOS><EOS><EOS><EOS><EOS>"
+    "Step 3000": [
+        {
+            "example": "11011+100011=0011001<EOS><PAD>",
+            "prediction": "0011001<EOS><PAD>",
+            "truth": "0011001<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "1+01101=11101<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "11101<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "11101<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3330": [
-        {
-            "example": "10100+10011=100111<EOS>",
-            "prediction": "<EOS>00111<EOS>",
-            "truth": "100111<EOS>"
+    "Step 14000": [
+        {
+            "example": "11+100011=100110<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "100110<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "100110<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "11101+101=100010<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "100000<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "100010<EOS><PAD><PAD><PAD><PAD><PAD>",
+            "match": false
         }
     ]
 }{
-    "Step 3380": [
-        {
-            "example": "11001+1100=100101<EOS><EOS>",
-            "prediction": "<EOS>00111<EOS><EOS>",
-            "truth": "100101<EOS><EOS>"
+    "Step 3500": [
+        {
+            "example": "0+011111=011111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "011111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "011111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "001101+10101=1000001<EOS><PAD>",
+            "prediction": "1000001<EOS><PAD>",
+            "truth": "1000001<EOS><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3430": [
-        {
-            "example": "1000+1111=10111<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1111<EOS><EOS><EOS><EOS>",
-            "truth": "10111<EOS><EOS><EOS><EOS>"
+    "Step 14500": [
+        {
+            "example": "11000+100111=111111<EOS><PAD><PAD>",
+            "prediction": "111111<EOS><PAD><PAD>",
+            "truth": "111111<EOS><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "10010+110010=1000100<EOS><PAD>",
+            "prediction": "1000100<EOS><PAD>",
+            "truth": "1000100<EOS><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3480": [
-        {
-            "example": "1010+10101=11111<EOS><EOS><EOS>",
-            "prediction": "<EOS>1111<EOS><EOS><EOS>",
-            "truth": "11111<EOS><EOS><EOS>"
+    "Step 4000": [
+        {
+            "example": "0+111111=111111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "111111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "111111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "10011+111011=0000101<EOS><PAD>",
+            "prediction": "0000101<EOS><PAD>",
+            "truth": "0000101<EOS><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3530": [
-        {
-            "example": "1+1010=1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>001<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>",
-            "truth": "1011<EOS><EOS><EOS><EOS><EOS><EOS><EOS><EOS>"
+    "Step 15000": [
+        {
+            "example": "1110+1000=10110<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "10110<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "10110<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "111000+1011=1000011<EOS><PAD><PAD>",
+            "prediction": "1000011<EOS><PAD><PAD>",
+            "truth": "1000011<EOS><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3580": [
-        {
-            "example": "10011+10010=100101<EOS>",
-            "prediction": "<EOS>00100<EOS>",
-            "truth": "100101<EOS>"
+    "Step 4500": [
+        {
+            "example": "0+000111=000111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "000111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "000111<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "100101+11111=0001001<EOS><PAD>",
+            "prediction": "0001001<EOS><PAD>",
+            "truth": "0001001<EOS><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3630": [
-        {
-            "example": "10+10111=11001<EOS><EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>0101<EOS><EOS><EOS><EOS><EOS>",
-            "truth": "11001<EOS><EOS><EOS><EOS><EOS>"
+    "Step 15500": [
+        {
+            "example": "100+1000=1100<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "1101<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "1100<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": false
+        },
+        {
+            "example": "111001+101110=1100111<EOS>",
+            "prediction": "1100111<EOS>",
+            "truth": "1100111<EOS>",
+            "match": true
         }
     ]
 }{
-    "Step 3680": [
-        {
-            "example": "10100+10110=101010<EOS>",
-            "prediction": "<EOS>01011<EOS>",
-            "truth": "101010<EOS>"
+    "Step 5000": [
+        {
+            "example": "101+101101=010011<EOS><PAD><PAD><PAD><PAD>",
+            "prediction": "010011<EOS><PAD><PAD><PAD><PAD>",
+            "truth": "010011<EOS><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "0001+0011=00101<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "00101<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "00101<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3730": [
-        {
-            "example": "10001+11001=101010<EOS>",
-            "prediction": "<EOS>01011<EOS>",
-            "truth": "101010<EOS>"
+    "Step 16000": [
+        {
+            "example": "10101+101011=1000000<EOS><PAD>",
+            "prediction": "1000000<EOS><PAD>",
+            "truth": "1000000<EOS><PAD>",
+            "match": true
+        },
+        {
+            "example": "111+10001=11000<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "11000<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "11000<EOS><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3780": [
-        {
-            "example": "1101+1101=11010<EOS><EOS><EOS><EOS>",
-            "prediction": "<EOS>1010<EOS><EOS><EOS><EOS>",
-            "truth": "11010<EOS><EOS><EOS><EOS>"
+    "Step 5500": [
+        {
+            "example": "10111+0=10111<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "prediction": "10111<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "truth": "10111<EOS><PAD><PAD><PAD><PAD><PAD><PAD><PAD><PAD>",
+            "match": true
+        },
+        {
+            "example": "110101+101=000011<EOS><PAD><PAD><PAD><PAD>",
+            "prediction": "000011<EOS><PAD><PAD><PAD><PAD>",
+            "truth": "000011<EOS><PAD><PAD><PAD><PAD>",
+            "match": true
         }
     ]
 }{
-    "Step 3830": [
-        {
-            "example": "10100+1110=100010<EOS><EOS>",
-            "prediction": "<EOS>00010<EOS><EOS>",
-            "truth": "100010<EOS><EOS>"
+    "Step 16500": [
+        {
+            "example": "101010+111000=1100010<EOS>",
+            "prediction": "1100010<EOS>",
+            "truth": "1100010<EOS>",
+            "match": true
+        },
+        {
+            "example": "1100+110111=1000011<EOS><PAD><PAD>",
+            "prediction": "1000011<EOS><PAD><PAD>",
+            "truth": "1000011<EOS><PAD><PAD>",
+            "match": true
         }
     ]
 }
