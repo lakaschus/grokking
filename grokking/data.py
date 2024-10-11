@@ -14,6 +14,7 @@ DIVISION_MODULO_OPERATIONS = {
 ALL_MODULO_OPERATIONS = {
     "x+y": lambda x, y, _: (x, y, x + y),
     "x+y_binary": lambda x, y, _: (x, y, x + y),
+    "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
     "x-y": lambda x, y, _: (x, y, x - y),
     **DIVISION_MODULO_OPERATIONS,
 }
@@ -76,7 +77,10 @@ def create_input_sequences(
 
 
 def binary_addition_data(
-    variable_length: bool = True, num_samples: int = None, max_bit_length: int = 8
+    variable_length: bool = True,
+    num_samples: int = None,
+    max_bit_length: int = 8,
+    flipped: bool = False,  # New parameter for flipping
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     """
     Generate binary addition data with variable lengths (no leading zeros).
@@ -86,13 +90,14 @@ def binary_addition_data(
         num_samples (int, optional): Number of samples to generate.
                                      If None, generate all possible combinations up to a certain bit length.
         max_bit_length (int): Maximum bit length for binary numbers.
+        flipped (bool): If True, flip the digits of the binary numbers.
 
     Returns:
         Tuple containing input sequences, label sequences, op_token, and eq_token.
     """
     x, y = generate_binary_operands(variable_length, num_samples, max_bit_length)
     sum_xy = x + y
-    inputs, labels = encode_binary_sequences(x, y, sum_xy)
+    inputs, labels = encode_binary_sequences(x, y, sum_xy, flipped=flipped)
     return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
@@ -115,7 +120,7 @@ def generate_binary_operands(
 
 
 def encode_binary_sequences(
-    x: Tensor, y: Tensor, sum_xy: Tensor
+    x: Tensor, y: Tensor, sum_xy: Tensor, flipped: bool = False
 ) -> Tuple[List[List[int]], List[List[int]]]:
     inputs = []
     labels = []
@@ -123,6 +128,11 @@ def encode_binary_sequences(
         a_bin = bin(a)[2:] if a != 0 else "0"
         b_bin = bin(b)[2:] if b != 0 else "0"
         c_bin = bin(c)[2:] if c != 0 else "0"
+
+        if flipped:
+            a_bin = a_bin[::-1]  # Flip the digits
+            b_bin = b_bin[::-1]
+            c_bin = c_bin[::-1]
 
         input_seq = encode_sequence(a_bin, b_bin)
         label_seq = encode_label_sequence(c_bin)
@@ -156,7 +166,7 @@ def get_data(
     Get data loaders for the specified operation.
 
     Args:
-        operation (str): The operation to perform ('x+y', 'x+y_binary', etc.).
+        operation (str): The operation to perform ('x+y', 'x+y_binary', 'x+y_binary_flipped', etc.).
         max_number (int, optional): Max number for modulo operations or bit length for binary addition.
         training_fraction (float): Fraction of data to use for training.
         batch_size (int): Batch size for data loaders.
@@ -169,9 +179,26 @@ def get_data(
         inputs, labels, op_token, eq_token = operation_mod_p_data(operation, max_number)
         num_unique_tokens = eq_token + 1
         dataset = TensorDataset(inputs, labels)
-    elif "binary" in operation:
+    elif operation == "x+y_binary":
         inputs, labels, op_token, eq_token = binary_addition_data(
-            variable_length=True, num_samples=None, max_bit_length=max_number
+            variable_length=True,
+            num_samples=None,
+            max_bit_length=max_number,
+            flipped=False,
+        )
+        inputs_padded, labels_padded = pad_binary_sequences(inputs, labels)
+        dataset = TensorDataset(
+            torch.tensor(inputs_padded), torch.tensor(labels_padded)
+        )
+        num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
+        op_token = BINARY_OP_TOKEN
+        eq_token = BINARY_EQ_TOKEN
+    elif operation == "x+y_binary_flipped":  # New task handling
+        inputs, labels, op_token, eq_token = binary_addition_data(
+            variable_length=True,
+            num_samples=None,
+            max_bit_length=max_number,
+            flipped=True,
         )
         inputs_padded, labels_padded = pad_binary_sequences(inputs, labels)
         dataset = TensorDataset(
