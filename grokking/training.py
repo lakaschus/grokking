@@ -132,6 +132,7 @@ def initialize_model_optimizer_scheduler(
         num_heads=config.num_heads,
         num_tokens=num_unique_tokens,
         seq_len=seq_len,
+        dropout=config.dropout,
     ).to(device)
 
     total_params = count_parameters(model)
@@ -594,7 +595,8 @@ def save_best_model(
     """
     if val_acc > best_val_acc:
         best_val_acc = val_acc
-        model_filename = f"models/best_model_{config.operation}.pt"
+        operation = config.operation.replace("/", "div")
+        model_filename = f"./models/best_model_{operation}.pt"
         model_config = {
             "num_layers": config.num_layers,
             "dim_model": config.dim_model,

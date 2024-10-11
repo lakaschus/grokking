@@ -19,9 +19,9 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x+y",
+                "x/y",
                 "--training_fraction",
-                "0.3",
+                "0.5",
                 "--prime",
                 "97",
                 "--num_layers",
@@ -39,7 +39,9 @@
                 "--num_steps",
                 "10000",
                 "--device",
-                "cuda"
+                "cuda",
+                "--dropout",
+                "0.25"
             ]
         },
         {
@@ -72,7 +74,9 @@
                 "--num_steps",
                 "10000",
                 "--device",
-                "cuda"
+                "cuda",
+                "--dropout",
+                "0.1"
             ]
         },
         {
@@ -89,11 +93,11 @@
                 "--task_type",
                 "sequence",
                 "--training_fraction",
-                "0.7",
+                "0.1",
                 "--prime",
-                "7",
+                "6",
                 "--num_layers",
-                "4",
+                "2",
                 "--dim_model",
                 "128",
                 "--num_heads",
@@ -107,7 +111,9 @@
                 "--num_steps",
                 "200000",
                 "--device",
-                "cuda"
+                "cuda",
+                "--dropout",
+                "0.1"
             ]
         },
         {

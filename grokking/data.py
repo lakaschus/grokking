@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from typing import Tuple, List, Dict
 
 DIVISION_MODULO_OPERATIONS = {
-    "x/y": lambda x, y, p: (x * y % p, y, x),
+    "x/y": lambda x, y, p: ((x * y) % p, y, x),
 }
 
 ALL_MODULO_OPERATIONS = {
