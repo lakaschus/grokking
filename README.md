@@ -41,4 +41,4 @@ The project uses [Weights & Biases](https://wandb.ai/site) to keep track of expe
 - Optimizer benchmark! Maybe it only works with specific ones
 - Come up with explanation why grokking works -> Study optimizer first!
 - With sequence tasks it seems that validation more closely follows training acc. Think about why that's the case and what's different to one-token classification.
-- Mirror binary data. Reasoning: A model cannot compute step by step, if it has to predict the largest token first. Example: 19 + 12 = 31. So the model needs to predict "3" first before it can predict "1". That means it cannot use an addition rule with carry over method.
+- Mirror binary data. Reasoning: A model cannot compute step by step, if it has to predict the largest token first. Example: 19 + 12 = 31. So the model needs to predict "3" first before it can predict "1". That means it cannot use an addition rule with carry over method. -> CHECK
