@@ -12,11 +12,8 @@ import json
 from data import get_data, BINARY_TOKENS
 from model import Transformer
 
-# Add these at the top of training.py after imports
-
 from typing import List, Dict
 
-# Create a reverse mapping from token IDs to tokens
 ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
 
 
@@ -101,7 +98,6 @@ def main(args: Dict[str, Any]) -> None:
             eq_token,
             max_sequence_length,
         )
-        # Optionally, you can break early if desired
 
 
 def count_parameters(model: torch.nn.Module) -> int:
@@ -151,16 +147,6 @@ def initialize_model_optimizer_scheduler(
 
 
 def calculate_num_epochs(num_steps: int, train_loader_length: int) -> int:
-    """
-    Calculates the number of epochs based on total training steps and loader length.
-
-    Args:
-        num_steps (int): Total number of training steps.
-        train_loader_length (int): Number of batches per epoch.
-
-    Returns:
-        int: Number of epochs to train.
-    """
     return ceil(num_steps / train_loader_length)
 
 
@@ -172,20 +158,6 @@ def train(
     device: torch.device,
     config: Any,
 ) -> Dict[str, float]:
-    """
-    Trains the model for one epoch.
-
-    Args:
-        model (Transformer): The model to train.
-        train_loader (DataLoader): Training DataLoader.
-        optimizer (torch.optim.Optimizer): Optimizer.
-        scheduler (torch.optim.lr_scheduler.LRScheduler): Learning rate scheduler.
-        device (torch.device): Device to run the training on.
-        config (Any): Configuration parameters.
-
-    Returns:
-        Dict containing training metrics.
-    """
     model.train()
     criterion = get_criterion(config)
 
@@ -213,15 +185,6 @@ def train(
 
 
 def get_criterion(config: Any) -> torch.nn.Module:
-    """
-    Returns the appropriate loss function based on task type.
-
-    Args:
-        config (Any): Configuration parameters.
-
-    Returns:
-        torch.nn.Module: The loss function.
-    """
     if config.task_type == "sequence":
         return torch.nn.CrossEntropyLoss()
     else:
@@ -231,18 +194,6 @@ def get_criterion(config: Any) -> torch.nn.Module:
 def train_classification(
     model: Transformer, inputs: Tensor, labels: Tensor, criterion: torch.nn.Module
 ) -> Tuple[Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Performs a training step for classification tasks.
-
-    Args:
-        model (Transformer): The model.
-        inputs (Tensor): Input data.
-        labels (Tensor): Labels.
-        criterion (torch.nn.Module): Loss function.
-
-    Returns:
-        Tuple containing outputs, loss, and accuracy.
-    """
     output = model(inputs)[-1, :, :]
     loss = criterion(output, labels)
     preds = torch.argmax(output, dim=1)
@@ -257,19 +208,6 @@ def train_sequence(
     criterion: torch.nn.Module,
     config: Any,
 ) -> Tuple[Tensor, torch.Tensor, torch.Tensor]:
-    """
-    Performs a training step for sequence tasks.
-
-    Args:
-        model (Transformer): The model.
-        inputs (Tensor): Input data.
-        labels (Tensor): Labels.
-        criterion (torch.nn.Module): Loss function.
-        config (Any): Configuration parameters.
-
-    Returns:
-        Tuple containing outputs, loss, and accuracy.
-    """
     output, target, eq_positions = get_logits(
         model, inputs
     )  # [batch_size, seq_len -1, num_tokens]
@@ -280,15 +218,6 @@ def train_sequence(
 
 
 def get_eq_positions(inputs: Tensor) -> Tensor:
-    """
-    Returns the positions of the "=" tokens in the input tensor.
-
-    Args:
-        inputs (Tensor): Input data.
-
-    Returns:
-        Tensor: Positions of the "=" tokens.
-    """
     return (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1] - 1
 
 
@@ -299,19 +228,6 @@ def compute_sequence_loss_and_accuracy(
     criterion: torch.nn.Module,
     config: Any,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Computes loss and accuracy for sequence tasks.
-
-    Args:
-        output (Tensor): Model outputs.
-        target (Tensor): Target labels.
-        eq_positions (Tensor): Positions of "=" tokens.
-        criterion (torch.nn.Module): Loss function.
-        config (Any): Configuration parameters.
-
-    Returns:
-        Tuple containing loss and accuracy.
-    """
     batch_size, seq_len, num_tokens = output.size()
     mask = create_mask_from_positions(seq_len, batch_size, eq_positions, output.device)
     masked_output = mask_tensor(output, mask)
@@ -343,27 +259,10 @@ def create_mask_from_positions(seq_len, batch_size, positions, device) -> Tensor
 
 
 def mask_tensor(tensor: Tensor, mask: Tensor) -> Tensor:
-    """
-    Masks a tensor.
-
-    Args:
-        tensor (Tensor): The tensor to mask.
-        mask (Tensor): The mask to apply.
-
-    Returns:
-        Tensor: The masked tensor.
-    """
     return tensor[mask]
 
 
 def log_training_metrics(acc: torch.Tensor, loss: torch.Tensor) -> None:
-    """
-    Logs training metrics to wandb.
-
-    Args:
-        acc (torch.Tensor): Accuracy.
-        loss (torch.Tensor): Loss.
-    """
     metrics = {
         "training/accuracy": acc.item(),
         "training/loss": loss.item(),
@@ -379,19 +278,6 @@ def evaluate(
     epoch: int,
     config: Any,
 ) -> Tuple[float, float]:
-    """
-    Evaluates the model on the validation set.
-
-    Args:
-        model (Transformer): The model to evaluate.
-        val_loader (DataLoader): Validation DataLoader.
-        device (torch.device): Device to run evaluation on.
-        epoch (int): Current epoch number.
-        config (Any): Configuration parameters.
-
-    Returns:
-        Tuple containing validation accuracy and loss.
-    """
     model.eval()
     criterion = get_evaluation_criterion(config)
 
@@ -439,15 +325,6 @@ def evaluate(
 
 
 def get_evaluation_criterion(config: Any) -> torch.nn.Module:
-    """
-    Returns the appropriate loss function for evaluation based on task type.
-
-    Args:
-        config (Any): Configuration parameters.
-
-    Returns:
-        torch.nn.Module: The loss function.
-    """
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
@@ -459,18 +336,6 @@ def get_evaluation_criterion(config: Any) -> torch.nn.Module:
 def evaluate_classification(
     model: Transformer, inputs: Tensor, labels: Tensor, criterion: torch.nn.Module
 ) -> Tuple[float, float, int]:
-    """
-    Evaluates classification performance on a batch.
-
-    Args:
-        model (Transformer): The model.
-        inputs (Tensor): Input data.
-        labels (Tensor): Labels.
-        criterion (torch.nn.Module): Loss function.
-
-    Returns:
-        Tuple containing loss, number of correct predictions, and number of samples.
-    """
     output = model(inputs)[-1, :, :]
     loss = criterion(output, labels).item()
     preds = torch.argmax(output, dim=1)
@@ -493,19 +358,6 @@ def evaluate_sequence(
     criterion: torch.nn.Module,
     config: Any,
 ) -> Tuple[float, float, int, List[str], List[str]]:
-    """
-    Evaluates the model on a sequence task.
-
-    Args:
-        model (Transformer): The model to evaluate.
-        inputs (Tensor): Input data.
-        labels (Tensor): Labels.
-        criterion (torch.nn.Module): Loss function.
-        config (Any): Configuration parameters.
-
-    Returns:
-        Tuple containing loss, accuracy, number of samples, predicted sequences, and true sequences.
-    """
     output, target, eq_positions = get_logits(model, inputs)
     loss, acc = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
@@ -529,19 +381,6 @@ def collect_validation_examples(
     preds: List[str],
     trues: List[str],
 ) -> List[List[str]]:
-    """
-    Collects examples for visualization.
-
-    Args:
-        inputs (Tensor): Input data.
-        labels (Tensor): Labels.
-        config (Any): Configuration parameters.
-        preds (List[str]): Predicted sequences.
-        trues (List[str]): True sequences.
-
-    Returns:
-        List of examples in the format [input, prediction, truth].
-    """
     examples = []
     input_example = decode_sequence(inputs[0], ID_TO_TOKEN)
 
@@ -576,23 +415,6 @@ def save_best_model(
     eq_token: int,
     max_sequence_length: int,
 ) -> float:
-    """
-    Saves the model if validation accuracy improves.
-
-    Args:
-        val_acc (float): Current validation accuracy.
-        best_val_acc (float): Best validation accuracy so far.
-        model (Transformer): The model to save.
-        optimizer (torch.optim.Optimizer): Optimizer.
-        config (Any): Configuration parameters.
-        epoch (int): Current epoch number.
-        op_token (int): Operation token.
-        eq_token (int): Equality token.
-        max_sequence_length (int): Maximum sequence length.
-
-    Returns:
-        Updated best_val_acc.
-    """
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         operation = config.operation.replace("/", "div")
@@ -622,21 +444,6 @@ def create_checkpoint(
     val_acc: float,
     val_loss: float,
 ) -> Dict[str, Any]:
-    """
-    Creates a checkpoint dictionary.
-
-    Args:
-        model (Transformer): The model.
-        optimizer (torch.optim.Optimizer): Optimizer.
-        config (Any): Configuration parameters.
-        epoch (int): Current epoch number.
-        model_config (Dict[str, Any]): Model configuration.
-        val_acc (float): Validation accuracy.
-        val_loss (float): Validation loss.
-
-    Returns:
-        Dict containing checkpoint information.
-    """
     return {
         "epoch": epoch,
         "model_config": model_config,
