@@ -50,7 +50,9 @@ def log_model_parameters_wandb(model: torch.nn.Module) -> None:
 
 def clear_logs() -> None:
     # replace logs/validation_examples.json with an empty file
-    with open("logs/validation_examples.json", "w") as f:
+    with open("logs/validation_examples_in_domain.json", "w") as f:
+        f.write("")
+    with open("logs/validation_examples_out_of_domain.json", "w") as f:
         f.write("")
 
 
@@ -362,7 +364,10 @@ def evaluate(
         f"validation_{validation_type}/loss": avg_loss,
         "epoch": epoch,
     }
-    wandb.log(metrics)
+
+    next_step = True if validation_type == "in_domain" else False
+
+    wandb.log(metrics, commit=next_step)
 
     return {"accuracy": accuracy, "loss": avg_loss}
 

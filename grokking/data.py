@@ -67,63 +67,36 @@ def create_input_sequences(
 
 
 def binary_addition_data(
-    variable_length: bool = True,
-    num_samples: int = None,
+    out_domain: bool = False,
     min_bit_length: int = 1,
     max_bit_length: int = 6,
     flipped: bool = False,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
-    x, y = generate_binary_operands(
-        variable_length, num_samples, min_bit_length, max_bit_length
-    )
+    x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length)
     sum_xy = x + y
     inputs, labels = encode_binary_sequences(x, y, sum_xy, flipped=flipped)
     return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
-def compute_bit_length(x: Tensor) -> Tensor:
-    bit_length = torch.zeros_like(x)
-    mask = x > 0
-    # Handle x > 0
-    bit_length[mask] = x[mask].floor().log2().ceil().long() + 1
-    # Handle x = 0
-    bit_length[~mask] = 1
-    return bit_length
-
-
-# data.py
-
-
 def generate_binary_operands(
-    variable_length: bool,
-    num_samples: int,
-    min_bit_length: int,
-    max_bit_length: int,
+    out_domain: bool,
+    min_bit_length: int = 1,
+    max_bit_length: int = 6,
 ) -> Tuple[Tensor, Tensor]:
-    if variable_length:
-        if num_samples is None:
-            x = torch.arange(0, 2**max_bit_length)
-            y = torch.arange(0, 2**max_bit_length)
-            x_bit_length = compute_bit_length(x)
-            y_bit_length = compute_bit_length(y)
-            x = x[x_bit_length >= min_bit_length]
-            y = y[y_bit_length >= min_bit_length]
-            x, y = torch.cartesian_prod(x, y).T
-        else:
-            x = torch.randint(0, 2**max_bit_length, (num_samples,))
-            y = torch.randint(0, 2**max_bit_length, (num_samples,))
-            x_bit_length = compute_bit_length(x)
-            y_bit_length = compute_bit_length(y)
-            mask = (x_bit_length >= min_bit_length) & (y_bit_length >= min_bit_length)
-            x = x[mask]
-            y = y[mask]
+    if out_domain:
+        x = torch.arange(0, 2**max_bit_length)
+        y = torch.arange(0, 2**max_bit_length)
+        y_ = y[y >= 2**min_bit_length]
+        x_1, y_1 = torch.cartesian_prod(x, y_).T
+        x_ = x[x >= 2**min_bit_length]
+        x_2, y_2 = torch.cartesian_prod(x_, y).T
+        # Concatenate x_1 and x_2
+        x = torch.cat([x_1, x_2])
+        # Concatenate y_1 and y_2
+        y = torch.cat([y_1, y_2])
     else:
         x = torch.arange(0, 2**max_bit_length)
         y = torch.arange(0, 2**max_bit_length)
-        x_bit_length = compute_bit_length(x)
-        y_bit_length = compute_bit_length(y)
-        x = x[x_bit_length >= min_bit_length]
-        y = y[y_bit_length >= min_bit_length]
         x, y = torch.cartesian_prod(x, y).T
     return x, y
 
@@ -175,9 +148,6 @@ def get_data(
     if operation == "x+y_binary_flipped":
         # Generate training and in-domain validation data
         inputs_train_val, labels_train_val, _, _ = binary_addition_data(
-            variable_length=True,
-            num_samples=None,
-            min_bit_length=1,
             max_bit_length=max_bit_length_train,
             flipped=True,
         )
@@ -195,7 +165,8 @@ def get_data(
             labels_train_val_padded, max_label_length
         )
         dataset_train_val = TensorDataset(
-            torch.tensor(inputs_train_val_padded), torch.tensor(labels_train_val_padded)
+            torch.as_tensor(inputs_train_val_padded),
+            torch.as_tensor(labels_train_val_padded),
         )
 
         # Split into training and in-domain validation
@@ -207,9 +178,8 @@ def get_data(
 
         # Generate out-of-domain validation data
         inputs_val_out, labels_val_out, _, _ = binary_addition_data(
-            variable_length=True,
-            num_samples=None,
-            min_bit_length=max_bit_length_train + 1,
+            out_domain=True,
+            min_bit_length=max_bit_length_train,
             max_bit_length=max_bit_length_val_out,
             flipped=True,
         )
@@ -217,16 +187,17 @@ def get_data(
             inputs_val_out, labels_val_out
         )
         dataset_val_out = TensorDataset(
-            torch.tensor(inputs_val_out_padded), torch.tensor(labels_val_out_padded)
+            torch.as_tensor(inputs_val_out_padded),
+            torch.as_tensor(labels_val_out_padded),
         )
 
         # Create DataLoaders
         train_loader = DataLoader(
             train_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
-        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=False)
+        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=True)
         val_out_loader = DataLoader(
-            dataset_val_out, batch_size=batch_size, shuffle=False
+            dataset_val_out, batch_size=batch_size, shuffle=True
         )
 
         num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
