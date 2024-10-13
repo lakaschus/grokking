@@ -1,5 +1,3 @@
-# training.py
-
 from math import ceil
 import torch
 from torch.utils.data import DataLoader, TensorDataset
@@ -13,6 +11,7 @@ from data import get_data, BINARY_TOKENS
 from model import Transformer
 
 from typing import List, Dict
+
 
 ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
 
@@ -55,23 +54,36 @@ def clear_logs() -> None:
         f.write("")
 
 
+# training.py
+
+
 def main(args: Dict[str, Any]) -> None:
     clear_logs()
     initialize_wandb(args)
     config = wandb.config
     device = torch.device(config.device)
 
-    data_loaders, op_token, eq_token, num_unique_tokens = get_data(
+    # Retrieve DataLoaders
+    (
+        train_loader,
+        val_in_loader,
+        val_out_loader,
+        op_token,
+        eq_token,
+        num_unique_tokens,
+    ) = get_data(
         config.operation,
-        config.prime,
-        config.training_fraction,
-        config.batch_size,
-        config.curriculum,
+        max_bit_length_train=config.max_bit_length_train,  # e.g., 6
+        max_bit_length_val_out=config.max_bit_length_val_out,  # e.g., 7
+        training_fraction=config.training_fraction,
+        batch_size=config.batch_size,
+        curriculum=config.curriculum,
     )
-    train_loader, val_loader, _, _, _ = data_loaders
 
+    # Optionally export data
     export_dataloader_data(train_loader, "train_data.json")
-    export_dataloader_data(val_loader, "val_data.json")
+    export_dataloader_data(val_in_loader, "val_in_data.json")
+    export_dataloader_data(val_out_loader, "val_out_data.json")
 
     max_sequence_length = get_max_sequence_length(train_loader)
     config.max_sequence_length = max_sequence_length
@@ -84,24 +96,43 @@ def main(args: Dict[str, Any]) -> None:
     best_val_acc = 0.0
 
     for epoch in tqdm(range(num_epochs), desc="Epochs"):
+        # Training
         train_metrics = train(model, train_loader, optimizer, scheduler, device, config)
-        val_metrics = evaluate(model, val_loader, device, epoch, config)
 
-        best_val_acc = save_best_model(
-            val_metrics["accuracy"],
-            best_val_acc,
+        # In-Domain Validation
+        val_in_metrics = evaluate(
+            model, val_in_loader, device, epoch, config, validation_type="in_domain"
+        )
+
+        # Out-of-Domain Validation
+        val_out_metrics = evaluate(
             model,
-            optimizer,
-            config,
+            val_out_loader,
+            device,
             epoch,
-            op_token,
-            eq_token,
-            max_sequence_length,
+            config,
+            validation_type="out_of_domain",
+        )
+
+        # Save the best model based on In-Domain Validation Accuracy
+        best_val_acc = save_best_model(
+            val_acc=val_in_metrics["accuracy"],
+            best_val_acc=best_val_acc,
+            model=model,
+            optimizer=optimizer,
+            config=config,
+            epoch=epoch,
+            op_token=op_token,
+            eq_token=eq_token,
+            max_sequence_length=max_sequence_length,
         )
 
 
 def count_parameters(model: torch.nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
+# training.py
 
 
 def initialize_wandb(args: Dict[str, Any]) -> None:
@@ -111,8 +142,10 @@ def initialize_wandb(args: Dict[str, Any]) -> None:
     wandb.define_metric("epoch")
     wandb.define_metric("training/accuracy", step_metric="step")
     wandb.define_metric("training/loss", step_metric="step")
-    wandb.define_metric("validation/accuracy", step_metric="epoch")
-    wandb.define_metric("validation/loss", step_metric="epoch")
+    wandb.define_metric("validation_in_domain/accuracy", step_metric="epoch")
+    wandb.define_metric("validation_in_domain/loss", step_metric="epoch")
+    wandb.define_metric("validation_out_of_domain/accuracy", step_metric="epoch")
+    wandb.define_metric("validation_out_of_domain/loss", step_metric="epoch")
 
 
 def get_max_sequence_length(train_loader: DataLoader) -> int:
@@ -271,13 +304,17 @@ def log_training_metrics(acc: torch.Tensor, loss: torch.Tensor) -> None:
     wandb.log(metrics, commit=False)
 
 
+# training.py
+
+
 def evaluate(
     model: Transformer,
     val_loader: DataLoader,
     device: torch.device,
     epoch: int,
     config: Any,
-) -> Tuple[float, float]:
+    validation_type: str,  # 'in_domain' or 'out_of_domain'
+) -> Dict[str, float]:
     model.eval()
     criterion = get_evaluation_criterion(config)
 
@@ -288,22 +325,27 @@ def evaluate(
         for batch in val_loader:
             inputs, labels = [tensor.to(device) for tensor in batch]
             if config.task_type == "classification":
-                total_loss, total_correct, total_samples = evaluate_classification(
+                loss, correct, num_samples = evaluate_classification(
                     model, inputs, labels, criterion
                 )
+                total_loss += loss * num_samples
+                total_correct += correct
+                total_samples += num_samples
             elif config.task_type == "sequence":
                 loss, acc, num_samples, preds, trues = evaluate_sequence(
                     model, inputs, labels, criterion, config
                 )
-                total_loss += loss.item() * inputs.size(0)
+                total_loss += loss.item() * num_samples
                 total_correct += acc * num_samples
                 total_samples += num_samples
-                # Collect validation examples with actual predictions
+                # Collect validation examples
                 examples_table.extend(
                     collect_validation_examples(
                         model, inputs, labels, config, preds, trues
                     )
                 )
+            else:
+                raise ValueError(f"Unsupported task type: {config.task_type}")
 
     # Calculate average loss and accuracy
     avg_loss = total_loss / len(val_loader.dataset)
@@ -311,12 +353,13 @@ def evaluate(
 
     if wandb.run.step % 500 == 0:
         log_model_parameters_wandb(model)
-        with open("logs/validation_examples.json", "a") as f:
+        with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
 
+    # Log metrics with appropriate prefixes
     metrics = {
-        "validation/accuracy": accuracy,
-        "validation/loss": avg_loss,
+        f"validation_{validation_type}/accuracy": accuracy,
+        f"validation_{validation_type}/loss": avg_loss,
         "epoch": epoch,
     }
     wandb.log(metrics)
@@ -404,6 +447,9 @@ def collect_validation_examples(
     return examples
 
 
+# training.py
+
+
 def save_best_model(
     val_acc: float,
     best_val_acc: float,
@@ -430,7 +476,7 @@ def save_best_model(
         }
         checkpoint = create_checkpoint(
             model, optimizer, config, epoch, model_config, val_acc, val_loss=None
-        )  # val_loss can be added if needed
+        )
         torch.save(checkpoint, model_filename)
     return best_val_acc
 

@@ -39,16 +39,6 @@ BINARY_PAD_TOKEN = BINARY_TOKENS["<PAD>"]
 
 
 def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, int]:
-    """
-    Generate data for operations involving modulo.
-
-    Args:
-        operation (str): The operation to perform.
-        p (int): The modulo value.
-
-    Returns:
-        Tuple containing inputs, labels, op_token, and eq_token.
-    """
     x, y = generate_cartesian_product(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
     op_token, eq_token = define_tokens(labels)
@@ -79,42 +69,61 @@ def create_input_sequences(
 def binary_addition_data(
     variable_length: bool = True,
     num_samples: int = None,
-    max_bit_length: int = 8,
-    flipped: bool = False,  # New parameter for flipping
+    min_bit_length: int = 1,
+    max_bit_length: int = 6,
+    flipped: bool = False,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
-    """
-    Generate binary addition data with variable lengths (no leading zeros).
-
-    Args:
-        variable_length (bool): If True, generate variable-length binary numbers.
-        num_samples (int, optional): Number of samples to generate.
-                                     If None, generate all possible combinations up to a certain bit length.
-        max_bit_length (int): Maximum bit length for binary numbers.
-        flipped (bool): If True, flip the digits of the binary numbers.
-
-    Returns:
-        Tuple containing input sequences, label sequences, op_token, and eq_token.
-    """
-    x, y = generate_binary_operands(variable_length, num_samples, max_bit_length)
+    x, y = generate_binary_operands(
+        variable_length, num_samples, min_bit_length, max_bit_length
+    )
     sum_xy = x + y
     inputs, labels = encode_binary_sequences(x, y, sum_xy, flipped=flipped)
     return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
+def compute_bit_length(x: Tensor) -> Tensor:
+    bit_length = torch.zeros_like(x)
+    mask = x > 0
+    # Handle x > 0
+    bit_length[mask] = x[mask].floor().log2().ceil().long() + 1
+    # Handle x = 0
+    bit_length[~mask] = 1
+    return bit_length
+
+
+# data.py
+
+
 def generate_binary_operands(
-    variable_length: bool, num_samples: int, max_bit_length: int
+    variable_length: bool,
+    num_samples: int,
+    min_bit_length: int,
+    max_bit_length: int,
 ) -> Tuple[Tensor, Tensor]:
     if variable_length:
         if num_samples is None:
             x = torch.arange(0, 2**max_bit_length)
             y = torch.arange(0, 2**max_bit_length)
+            x_bit_length = compute_bit_length(x)
+            y_bit_length = compute_bit_length(y)
+            x = x[x_bit_length >= min_bit_length]
+            y = y[y_bit_length >= min_bit_length]
             x, y = torch.cartesian_prod(x, y).T
         else:
             x = torch.randint(0, 2**max_bit_length, (num_samples,))
             y = torch.randint(0, 2**max_bit_length, (num_samples,))
+            x_bit_length = compute_bit_length(x)
+            y_bit_length = compute_bit_length(y)
+            mask = (x_bit_length >= min_bit_length) & (y_bit_length >= min_bit_length)
+            x = x[mask]
+            y = y[mask]
     else:
         x = torch.arange(0, 2**max_bit_length)
         y = torch.arange(0, 2**max_bit_length)
+        x_bit_length = compute_bit_length(x)
+        y_bit_length = compute_bit_length(y)
+        x = x[x_bit_length >= min_bit_length]
+        y = y[y_bit_length >= min_bit_length]
         x, y = torch.cartesian_prod(x, y).T
     return x, y
 
@@ -157,65 +166,107 @@ def encode_label_sequence(c_bin: str) -> List[int]:
 
 def get_data(
     operation: str,
-    max_number: int = 10,
+    max_bit_length_train: int,
+    max_bit_length_val_out: int,
     training_fraction: float = 0.8,
     batch_size: int = 32,
     curriculum: str = "random",
-) -> Tuple[DataLoader, DataLoader, int, int, int]:
-    """
-    Get data loaders for the specified operation.
-
-    Args:
-        operation (str): The operation to perform ('x+y', 'x+y_binary', 'x+y_binary_flipped', etc.).
-        max_number (int, optional): Max number for modulo operations or bit length for binary addition.
-        training_fraction (float): Fraction of data to use for training.
-        batch_size (int): Batch size for data loaders.
-        curriculum (str): Curriculum learning strategy.
-
-    Returns:
-        Tuple containing train_loader, val_loader, op_token, eq_token, num_unique_tokens
-    """
-    if operation in ALL_OPERATIONS and "binary" not in operation:
-        inputs, labels, op_token, eq_token = operation_mod_p_data(operation, max_number)
-        num_unique_tokens = eq_token + 1
-        dataset = TensorDataset(inputs, labels)
-    elif operation == "x+y_binary":
-        inputs, labels, op_token, eq_token = binary_addition_data(
+) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
+    if operation == "x+y_binary_flipped":
+        # Generate training and in-domain validation data
+        inputs_train_val, labels_train_val, _, _ = binary_addition_data(
             variable_length=True,
             num_samples=None,
-            max_bit_length=max_number,
-            flipped=False,
-        )
-        inputs_padded, labels_padded = pad_binary_sequences(inputs, labels)
-        dataset = TensorDataset(
-            torch.tensor(inputs_padded), torch.tensor(labels_padded)
-        )
-        num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
-        op_token = BINARY_OP_TOKEN
-        eq_token = BINARY_EQ_TOKEN
-    elif operation == "x+y_binary_flipped":  # New task handling
-        inputs, labels, op_token, eq_token = binary_addition_data(
-            variable_length=True,
-            num_samples=None,
-            max_bit_length=max_number,
+            min_bit_length=1,
+            max_bit_length=max_bit_length_train,
             flipped=True,
         )
-        inputs_padded, labels_padded = pad_binary_sequences(inputs, labels)
-        dataset = TensorDataset(
-            torch.tensor(inputs_padded), torch.tensor(labels_padded)
+        inputs_train_val_padded, labels_train_val_padded = pad_binary_sequences(
+            inputs_train_val, labels_train_val
         )
+        max_input_length = (
+            2 * max_bit_length_val_out + (max_bit_length_val_out + 1) + 3
+        )  # two summands, result which can be have one more digit, plus token, eq token, eos token
+        max_label_length = (max_bit_length_val_out + 1) + 1
+        inputs_train_val_padded = pad_sequence_to_length(
+            inputs_train_val_padded, max_input_length
+        )
+        labels_train_val_padded = pad_sequence_to_length(
+            labels_train_val_padded, max_label_length
+        )
+        dataset_train_val = TensorDataset(
+            torch.tensor(inputs_train_val_padded), torch.tensor(labels_train_val_padded)
+        )
+
+        # Split into training and in-domain validation
+        train_size = int(training_fraction * len(dataset_train_val))
+        val_in_size = len(dataset_train_val) - train_size
+        train_dataset, val_in_dataset = torch.utils.data.random_split(
+            dataset_train_val, [train_size, val_in_size]
+        )
+
+        # Generate out-of-domain validation data
+        inputs_val_out, labels_val_out, _, _ = binary_addition_data(
+            variable_length=True,
+            num_samples=None,
+            min_bit_length=max_bit_length_train + 1,
+            max_bit_length=max_bit_length_val_out,
+            flipped=True,
+        )
+        inputs_val_out_padded, labels_val_out_padded = pad_binary_sequences(
+            inputs_val_out, labels_val_out
+        )
+        dataset_val_out = TensorDataset(
+            torch.tensor(inputs_val_out_padded), torch.tensor(labels_val_out_padded)
+        )
+
+        # Create DataLoaders
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
+        )
+        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=False)
+        val_out_loader = DataLoader(
+            dataset_val_out, batch_size=batch_size, shuffle=False
+        )
+
         num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
         op_token = BINARY_OP_TOKEN
         eq_token = BINARY_EQ_TOKEN
+
+        return (
+            train_loader,
+            val_in_loader,
+            val_out_loader,
+            op_token,
+            eq_token,
+            num_unique_tokens,
+        )
     else:
         raise ValueError(f"Unsupported operation: {operation}")
 
-    return (
-        create_data_loaders(dataset, training_fraction, batch_size, curriculum),
-        op_token,
-        eq_token,
-        num_unique_tokens,
-    )
+
+def pad_sequence_to_length(
+    padded, max_length, batch_first=True, padding_value=BINARY_TOKENS["<PAD>"]
+):
+
+    # If padded sequences are shorter than max_length, pad further
+    if padded.shape[1] < max_length:
+        pad_size = max_length - padded.shape[1]
+        if batch_first:
+            padded = torch.nn.functional.pad(padded, (0, pad_size), value=padding_value)
+        else:
+            padded = torch.nn.functional.pad(
+                padded, (0, 0, 0, pad_size), value=padding_value
+            )
+
+    # If padded sequences are longer than max_length, truncate
+    elif padded.shape[1] > max_length:
+        if batch_first:
+            padded = padded[:, :max_length]
+        else:
+            padded = padded[:max_length, :]
+
+    return padded
 
 
 def pad_binary_sequences(

@@ -21,6 +21,8 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", type=float, default=1)
     parser.add_argument("--num_steps", type=int, default=1e5)
     parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--max_bit_length_train", type=int, default=6)
+    parser.add_argument("--max_bit_length_val_out", type=int, default=7)
     args = parser.parse_args()
 
     main(args)
