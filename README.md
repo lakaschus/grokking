@@ -36,7 +36,7 @@ The project uses [Weights & Biases](https://wandb.ai/site) to keep track of expe
 
 ## TODOS
 
-- Hyperparmeter Sweep
+- Track sum of gradients
 - Out of distribution validation
 - Optimizer benchmark! Maybe it only works with specific ones
 - Come up with explanation why grokking works -> Study optimizer first!

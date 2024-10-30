@@ -212,8 +212,47 @@ def get_data(
             eq_token,
             num_unique_tokens,
         )
-    else:
-        raise ValueError(f"Unsupported operation: {operation}")
+
+    elif operation in ALL_MODULO_OPERATIONS:
+        # Generate training and validation data for modulo operations
+        p = max_bit_length_train
+        inputs, labels, op_token, eq_token = operation_mod_p_data(operation, p)
+
+        # Create dataset
+        dataset = TensorDataset(inputs, labels)
+
+        # Split into training and validation sets
+        train_size = int(training_fraction * len(dataset))
+        val_size = len(dataset) - train_size
+
+        train_dataset, val_in_dataset = torch.utils.data.random_split(
+            dataset, [train_size, val_size]
+        )
+
+        # Generate out-of-domain validation data with larger modulo
+        p_out = max_bit_length_val_out
+        inputs_out, labels_out, _, _ = operation_mod_p_data(operation, p_out)
+        val_out_dataset = TensorDataset(inputs_out, labels_out)
+
+        # Create DataLoaders
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
+        )
+        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=True)
+        val_out_loader = DataLoader(
+            val_out_dataset, batch_size=batch_size, shuffle=True
+        )
+
+        num_unique_tokens = torch.max(labels_out).item() + 2
+
+        return (
+            train_loader,
+            val_in_loader,
+            val_out_loader,
+            op_token,
+            eq_token,
+            num_unique_tokens,
+        )
 
 
 def pad_sequence_to_length(

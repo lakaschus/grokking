@@ -107,14 +107,15 @@ def main(args: Dict[str, Any]) -> None:
         )
 
         # Out-of-Domain Validation
-        val_out_metrics = evaluate(
-            model,
-            val_out_loader,
-            device,
-            epoch,
-            config,
-            validation_type="out_of_domain",
-        )
+        if args.task_type != "classification":
+            val_out_metrics = evaluate(
+                model,
+                val_out_loader,
+                device,
+                epoch,
+                config,
+                validation_type="out_of_domain",
+            )
 
         # Save the best model based on In-Domain Validation Accuracy
         best_val_acc = save_best_model(
@@ -144,6 +145,7 @@ def initialize_wandb(args: Dict[str, Any]) -> None:
     wandb.define_metric("epoch")
     wandb.define_metric("training/accuracy", step_metric="step")
     wandb.define_metric("training/loss", step_metric="step")
+    wandb.define_metric("learning_rate", step_metric="step")
     wandb.define_metric("validation_in_domain/accuracy", step_metric="epoch")
     wandb.define_metric("validation_in_domain/loss", step_metric="epoch")
     wandb.define_metric("validation_out_of_domain/accuracy", step_metric="epoch")
@@ -208,10 +210,21 @@ def train(
             raise ValueError(f"Unsupported task type: {config.task_type}")
 
         loss.backward()
+
+        gradient_norms = {}
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                abs_grad_sum = torch.sum(torch.abs(param.grad)).item()
+                gradient_norms[f"gradients/{name}_abs_sum"] = abs_grad_sum
+
+        # Add total gradient norm across all parameters
+        total_grad_norm = sum(gradient_norms.values())
+        gradient_norms["gradients/total_abs_sum"] = total_grad_norm
+
         optimizer.step()
         scheduler.step()
 
-        log_training_metrics(acc, loss)
+        log_training_metrics(acc, loss, scheduler.get_last_lr()[0], gradient_norms)
 
         if wandb.run.step >= config.num_steps:
             break
@@ -297,11 +310,15 @@ def mask_tensor(tensor: Tensor, mask: Tensor) -> Tensor:
     return tensor[mask]
 
 
-def log_training_metrics(acc: torch.Tensor, loss: torch.Tensor) -> None:
+def log_training_metrics(
+    acc: torch.Tensor, loss: torch.Tensor, lr, gradient_norms={}
+) -> None:
     metrics = {
         "training/accuracy": acc.item(),
         "training/loss": loss.item(),
+        "learning_rate": lr,
         "step": wandb.run.step,
+        **gradient_norms,  # Add all gradient metrics
     }
     wandb.log(metrics, commit=False)
 
