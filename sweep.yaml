@@ -3,30 +3,32 @@ program: grokking/cli.py
 method: grid
 
 metric:
-  name: validation_loss
+  name: step
   goal: minimize
 
 parameters:
   operation:
-    value: "x+y_binary"
+    value: "x/y"
   training_fraction:
-    value: [0.5]
+    value: [0.2, 0.4, 0.6, 0.8]
   num_layers:
-    value: 2
+    value: [1, 2, 3]
   dim_model:
     value: 128
   num_heads:
     value: 4
-  prime:
+  max_bit_length_train:
     value: 97
   batch_size:
-    value: 512
+    value: [128, 512, 1024]
   learning_rate:
-    value: 1e-3
+    value: [1e-4, 5e-4, 1e-3, 5e-3]
   weight_decay:
-    value: 1
+    value: [0.1, 1]
+  dropout:
+    value: [0., 0.2, 0.4]
   num_steps:
-    value: 1e5
+    value: 20000
   device:
-    value: cpu
+    value: cuda
   

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 
 from data import ALL_OPERATIONS
-from training import main
+import training
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -23,6 +23,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--max_bit_length_train", type=int, default=6)
     parser.add_argument("--max_bit_length_val_out", type=int, default=7)
+    parser.add_argument("--wandb_tracking", type=str, default="max")
     args = parser.parse_args()
 
-    main(args)
+    training.main(args)

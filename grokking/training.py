@@ -82,6 +82,11 @@ def main(args: Dict[str, Any]) -> None:
         curriculum=config.curriculum,
     )
 
+    # Get training set size
+    config.training_set_size = len(train_loader.dataset)
+    # log training set size
+    wandb.log({"training_set_size": config.training_set_size}, commit=False)
+
     # Optionally export data
     export_dataloader_data(train_loader, "train_data.json")
     export_dataloader_data(val_in_loader, "val_in_data.json")
@@ -93,6 +98,7 @@ def main(args: Dict[str, Any]) -> None:
     model, optimizer, scheduler = initialize_model_optimizer_scheduler(
         config, num_unique_tokens, max_sequence_length, device
     )
+    optimizer.training_steps = 0
 
     num_epochs = calculate_num_epochs(config.num_steps, len(train_loader))
     best_val_acc = 0.0
@@ -103,7 +109,7 @@ def main(args: Dict[str, Any]) -> None:
 
         # In-Domain Validation
         val_in_metrics = evaluate(
-            model, val_in_loader, device, epoch, config, validation_type="in_domain"
+            model, val_in_loader, device, optimizer, config, validation_type="in_domain"
         )
 
         # Out-of-Domain Validation
@@ -112,7 +118,7 @@ def main(args: Dict[str, Any]) -> None:
                 model,
                 val_out_loader,
                 device,
-                epoch,
+                optimizer,
                 config,
                 validation_type="out_of_domain",
             )
@@ -130,6 +136,13 @@ def main(args: Dict[str, Any]) -> None:
             max_sequence_length=max_sequence_length,
         )
 
+        if val_in_metrics["accuracy"] >= 1.0:
+            wandb.finish()
+            print(
+                f"Training completed successfully after {optimizer.training_steps} steps."
+            )
+            break
+
 
 def count_parameters(model: torch.nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -141,15 +154,22 @@ def count_parameters(model: torch.nn.Module) -> int:
 def initialize_wandb(args: Dict[str, Any]) -> None:
     wandb.init(project="grokking", config=args)
     config = wandb.config
-    wandb.define_metric("step")
+    wandb.define_metric("Optimization Steps")
     wandb.define_metric("epoch")
-    wandb.define_metric("training/accuracy", step_metric="step")
-    wandb.define_metric("training/loss", step_metric="step")
-    wandb.define_metric("learning_rate", step_metric="step")
-    wandb.define_metric("validation_in_domain/accuracy", step_metric="epoch")
-    wandb.define_metric("validation_in_domain/loss", step_metric="epoch")
-    wandb.define_metric("validation_out_of_domain/accuracy", step_metric="epoch")
-    wandb.define_metric("validation_out_of_domain/loss", step_metric="epoch")
+    wandb.define_metric("training_set_size")
+    wandb.define_metric("training/accuracy", step_metric="Optimization Steps")
+    wandb.define_metric("training/loss", step_metric="Optimization Steps")
+    wandb.define_metric("learning_rate", step_metric="Optimization Steps")
+    wandb.define_metric(
+        "validation_in_domain/accuracy", step_metric="Optimization Steps"
+    )
+    wandb.define_metric("validation_in_domain/loss", step_metric="Optimization Steps")
+    wandb.define_metric(
+        "validation_out_of_domain/accuracy", step_metric="Optimization Steps"
+    )
+    wandb.define_metric(
+        "validation_out_of_domain/loss", step_metric="Optimization Steps"
+    )
 
 
 def get_max_sequence_length(train_loader: DataLoader) -> int:
@@ -175,6 +195,7 @@ def initialize_model_optimizer_scheduler(
         model.parameters(),
         lr=config.learning_rate,
         betas=(0.9, 0.98),
+        eps=1e-8,
         weight_decay=config.weight_decay,
     )
     scheduler = torch.optim.lr_scheduler.LinearLR(
@@ -185,6 +206,19 @@ def initialize_model_optimizer_scheduler(
 
 def calculate_num_epochs(num_steps: int, train_loader_length: int) -> int:
     return ceil(num_steps / train_loader_length)
+
+
+def track_grads(model: torch.nn.Module) -> Dict[str, float]:
+    gradient_norms = {}
+    for name, param in model.named_parameters():
+        if param.grad is not None:
+            abs_grad_sum = torch.sum(torch.abs(param.grad)).item()
+            gradient_norms[f"gradients/{name}_abs_sum"] = abs_grad_sum
+
+    # Add total gradient norm across all parameters
+    total_grad_norm = sum(gradient_norms.values())
+    gradient_norms["gradients/total_abs_sum"] = total_grad_norm
+    return gradient_norms
 
 
 def train(
@@ -211,20 +245,22 @@ def train(
 
         loss.backward()
 
-        gradient_norms = {}
-        for name, param in model.named_parameters():
-            if param.grad is not None:
-                abs_grad_sum = torch.sum(torch.abs(param.grad)).item()
-                gradient_norms[f"gradients/{name}_abs_sum"] = abs_grad_sum
-
-        # Add total gradient norm across all parameters
-        total_grad_norm = sum(gradient_norms.values())
-        gradient_norms["gradients/total_abs_sum"] = total_grad_norm
-
         optimizer.step()
+        optimizer.training_steps += 1
         scheduler.step()
 
-        log_training_metrics(acc, loss, scheduler.get_last_lr()[0], gradient_norms)
+        if config.wandb_tracking != "minimal":
+            gradient_norms = track_grads(model)
+        else:
+            gradient_norms = {}
+
+        log_training_metrics(
+            optimizer.training_steps,
+            acc,
+            loss,
+            scheduler.get_last_lr()[0],
+            gradient_norms,
+        )
 
         if wandb.run.step >= config.num_steps:
             break
@@ -311,13 +347,13 @@ def mask_tensor(tensor: Tensor, mask: Tensor) -> Tensor:
 
 
 def log_training_metrics(
-    acc: torch.Tensor, loss: torch.Tensor, lr, gradient_norms={}
+    step: int, acc: torch.Tensor, loss: torch.Tensor, lr, gradient_norms={}
 ) -> None:
     metrics = {
         "training/accuracy": acc.item(),
         "training/loss": loss.item(),
-        "learning_rate": lr,
-        "step": wandb.run.step,
+        # "learning_rate": lr,
+        "Optimization Steps": step,
         **gradient_norms,  # Add all gradient metrics
     }
     wandb.log(metrics, commit=False)
@@ -330,7 +366,7 @@ def evaluate(
     model: Transformer,
     val_loader: DataLoader,
     device: torch.device,
-    epoch: int,
+    optimizer: torch.optim.Optimizer,
     config: Any,
     validation_type: str,  # 'in_domain' or 'out_of_domain'
 ) -> Dict[str, float]:
@@ -370,7 +406,7 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 500 == 0:
+    if (wandb.run.step % 500 == 0) & (config.wandb_tracking != "minimal"):
         log_model_parameters_wandb(model)
         with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
@@ -379,7 +415,7 @@ def evaluate(
     metrics = {
         f"validation_{validation_type}/accuracy": accuracy,
         f"validation_{validation_type}/loss": avg_loss,
-        "epoch": epoch,
+        "Optimization Steps": optimizer.training_steps,
     }
 
     next_step = True if validation_type == "in_domain" else False
@@ -405,6 +441,8 @@ def evaluate_classification(
     loss = criterion(output, labels).item()
     preds = torch.argmax(output, dim=1)
     correct = (preds == labels).sum().item()
+    # Get examples where the prediction is incorrect
+    # incorrect_indices = (preds != labels).nonzero(as_tuple=True)[0]
     return loss, correct, len(labels)
 
 

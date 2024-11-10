@@ -36,8 +36,9 @@ The project uses [Weights & Biases](https://wandb.ai/site) to keep track of expe
 
 ## TODOS
 
-- Track sum of gradients
-- Out of distribution validation
+- Track sum of gradients -> Check
+- Hyperparameter Tuning to demonstrate when Grokking occurs and when not
+- Out of distribution validation -> Check
 - Optimizer benchmark! Maybe it only works with specific ones
 - Come up with explanation why grokking works -> Study optimizer first!
 - With sequence tasks it seems that validation more closely follows training acc. Think about why that's the case and what's different to one-token classification.

@@ -19,7 +19,7 @@ class DecoderBlock(nn.Module):
 
         return nn.Sequential(
             nn.Linear(dim_model, dim_model * 4),
-            nn.GELU(),
+            nn.ReLU(),
             nn.Linear(dim_model * 4, dim_model),
         )
 
