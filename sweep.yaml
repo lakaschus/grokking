@@ -10,25 +10,29 @@ parameters:
   operation:
     value: "x/y"
   training_fraction:
-    value: [0.2, 0.4, 0.6, 0.8]
+    values: [0.8, 0.6, 0.4, 0.2]
   num_layers:
-    value: [1, 2, 3]
+    values: [2, 3, 4]
   dim_model:
     value: 128
   num_heads:
     value: 4
   max_bit_length_train:
     value: 97
+  max_bit_length_val_out:
+    value: 100
   batch_size:
-    value: [128, 512, 1024]
+    values: [128, 512, 1024]
   learning_rate:
-    value: [1e-4, 5e-4, 1e-3, 5e-3]
+    values: [1e-4, 5e-4, 1e-3, 5e-3]
   weight_decay:
-    value: [0.1, 1]
+    values: [0.1, 1]
   dropout:
-    value: [0., 0.2, 0.4]
+    values: [0., 0.2, 0.4]
   num_steps:
-    value: 20000
+    value: 50000
   device:
-    value: cuda
+    value: "cuda"
+  wandb_tracking:
+    value: "minimal"
   

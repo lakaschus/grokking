@@ -148,9 +148,6 @@ def count_parameters(model: torch.nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-# training.py
-
-
 def initialize_wandb(args: Dict[str, Any]) -> None:
     wandb.init(project="grokking", config=args)
     config = wandb.config
