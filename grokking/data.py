@@ -48,7 +48,7 @@ def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, i
 
 def generate_cartesian_product(operation: str, p: int) -> Tuple[Tensor, Tensor]:
     x = torch.arange(0, p)
-    y = torch.arange(0 if not operation in DIVISION_MODULO_OPERATIONS else 1, p)
+    y = torch.arange(0 if operation not in DIVISION_MODULO_OPERATIONS else 1, p)
     return torch.cartesian_prod(x, y).T
 
 
