@@ -11,7 +11,6 @@ if __name__ == "__main__":
     parser.add_argument("--curriculum", type=str, default="random")
     parser.add_argument("--task_type", type=str, default="classification")
     parser.add_argument("--training_fraction", type=float, default=0.5)
-    parser.add_argument("--prime", type=int, default=97)
     parser.add_argument("--num_layers", type=int, default=2)
     parser.add_argument("--dim_model", type=int, default=128)
     parser.add_argument("--num_heads", type=int, default=4)

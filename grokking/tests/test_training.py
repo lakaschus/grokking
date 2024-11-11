@@ -26,7 +26,6 @@ def config_sequence():
         dim_model=128,
         num_heads=4,
         operation="x+y_binary",
-        prime=10,
         training_fraction=0.8,
         batch_size=32,
         curriculum="random",

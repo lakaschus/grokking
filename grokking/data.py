@@ -145,11 +145,12 @@ def get_data(
     batch_size: int = 32,
     curriculum: str = "random",
 ) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
-    if operation == "x+y_binary_flipped":
+    if "binary" in operation:
+        flipped = True if "flipped" in operation else False
         # Generate training and in-domain validation data
         inputs_train_val, labels_train_val, _, _ = binary_addition_data(
             max_bit_length=max_bit_length_train,
-            flipped=True,
+            flipped=flipped,
         )
         inputs_train_val_padded, labels_train_val_padded = pad_binary_sequences(
             inputs_train_val, labels_train_val
@@ -181,7 +182,7 @@ def get_data(
             out_domain=True,
             min_bit_length=max_bit_length_train,
             max_bit_length=max_bit_length_val_out,
-            flipped=True,
+            flipped=flipped,
         )
         inputs_val_out_padded, labels_val_out_padded = pad_binary_sequences(
             inputs_val_out, labels_val_out

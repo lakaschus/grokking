@@ -1,6 +1,6 @@
 from math import ceil
 import torch
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
 from torch import Tensor
@@ -9,8 +9,6 @@ import json
 
 from data import get_data, BINARY_TOKENS
 from model import Transformer
-
-from typing import List, Dict
 
 
 ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
