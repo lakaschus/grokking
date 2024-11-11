@@ -3,7 +3,7 @@ program: grokking/cli.py
 method: grid
 
 metric:
-  name: step
+  name: "Optimization Steps"
   goal: minimize
 
 parameters:
