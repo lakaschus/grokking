@@ -5,10 +5,11 @@ import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, TensorDataset
-from typing import Tuple, List, Dict
+from typing import Tuple, List
 
 DIVISION_MODULO_OPERATIONS = {
     "x/y": lambda x, y, p: ((x * y) % p, y, x),
+    "x/y_binary": lambda x, y, p: ((x * y) % p, y, x),
 }
 
 ALL_MODULO_OPERATIONS = {
@@ -78,14 +79,30 @@ def binary_addition_data(
     return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
+def binary_divison_data(
+    out_domain: bool = False,
+    min_bit_length: int = 1,
+    max_bit_length: int = 6,
+    flipped: bool = False,
+) -> Tuple[List[List[int]], List[List[int]], int, int]:
+    x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
+    p = max_bit_length
+    xx = (x * y) % p
+    z = x
+    inputs, labels = encode_binary_sequences(xx, y, z, flipped=flipped)
+    return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
+
+
 def generate_binary_operands(
     out_domain: bool,
     min_bit_length: int = 1,
     max_bit_length: int = 6,
+    x_min: int = 0,
+    y_min: int = 0,
 ) -> Tuple[Tensor, Tensor]:
     if out_domain:
-        x = torch.arange(0, 2**max_bit_length)
-        y = torch.arange(0, 2**max_bit_length)
+        x = torch.arange(x_min, 2**max_bit_length)
+        y = torch.arange(y_min, 2**max_bit_length)
         y_ = y[y >= 2**min_bit_length]
         x_1, y_1 = torch.cartesian_prod(x, y_).T
         x_ = x[x >= 2**min_bit_length]
@@ -95,8 +112,8 @@ def generate_binary_operands(
         # Concatenate y_1 and y_2
         y = torch.cat([y_1, y_2])
     else:
-        x = torch.arange(0, 2**max_bit_length)
-        y = torch.arange(0, 2**max_bit_length)
+        x = torch.arange(x_min, 2**max_bit_length)
+        y = torch.arange(y_min, 2**max_bit_length)
         x, y = torch.cartesian_prod(x, y).T
     return x, y
 
@@ -147,8 +164,12 @@ def get_data(
 ) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
     if "binary" in operation:
         flipped = True if "flipped" in operation else False
+        if "x+y" in operation:
+            task_method = binary_addition_data
+        elif "x/y" in operation:
+            task_method = binary_divison_data
         # Generate training and in-domain validation data
-        inputs_train_val, labels_train_val, _, _ = binary_addition_data(
+        inputs_train_val, labels_train_val, _, _ = task_method(
             max_bit_length=max_bit_length_train,
             flipped=flipped,
         )
@@ -178,7 +199,7 @@ def get_data(
         )
 
         # Generate out-of-domain validation data
-        inputs_val_out, labels_val_out, _, _ = binary_addition_data(
+        inputs_val_out, labels_val_out, _, _ = task_method(
             out_domain=True,
             min_bit_length=max_bit_length_train,
             max_bit_length=max_bit_length_val_out,

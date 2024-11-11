@@ -401,10 +401,11 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if (wandb.run.step % 500 == 0) & (config.wandb_tracking != "minimal"):
-        log_model_parameters_wandb(model)
+    if wandb.run.step % 50 == 0:
         with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
+        if config.wandb_tracking != "minimal":
+            log_model_parameters_wandb(model)
 
     # Log metrics with appropriate prefixes
     metrics = {
