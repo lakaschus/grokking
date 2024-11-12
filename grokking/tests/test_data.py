@@ -2,7 +2,6 @@
 
 import pytest
 from data import get_data
-import torch
 
 
 def collect_all_samples(data_loader):
@@ -37,40 +36,42 @@ def test_flipped_dataset_is_correctly_flipped(max_bit_length):
     """
     # Generate standard binary addition data
     (
-        data_loaders_binary,
-        op_token_std,
-        eq_token_std,
-        num_unique_tokens_std,
+        train_loader,
+        val_in_loader,
+        val_out_loader,
+        op_token,
+        eq_token,
+        num_unique_tokens,
     ) = get_data(
         operation="x+y_binary",
-        max_number=max_bit_length,
-        training_fraction=1.0,  # Use all data for simplicity
+        max_bit_length_train=max_bit_length,
+        max_bit_length_val_out=max_bit_length + 1,
+        training_fraction=0.9,
         batch_size=1024,  # Large batch size to collect all samples at once
         curriculum="ordered",  # Ensure the order is consistent
     )
 
     # Generate flipped binary addition data
     (
-        data_loaders_flipped,
+        train_loader_flipped,
+        val_in_loader_flipped,
+        val_out_loader_flipped,
         op_token_flipped,
         eq_token_flipped,
         num_unique_tokens_flipped,
     ) = get_data(
         operation="x+y_binary_flipped",
-        max_number=max_bit_length,
-        training_fraction=1.0,  # Use all data for simplicity
+        max_bit_length_train=max_bit_length,
+        max_bit_length_val_out=max_bit_length + 1,
+        training_fraction=0.9,
         batch_size=1024,  # Large batch size to collect all samples at once
         curriculum="ordered",  # Ensure the order is consistent
     )
 
-    train_loader_std, val_loader_std, _, _, _ = data_loaders_binary
-    train_loader_flipped, val_loader_flipped, _, _, _ = data_loaders_flipped
     # Collect all samples from both datasets
-    samples_std = collect_all_samples(train_loader_std) | collect_all_samples(
-        val_loader_std
-    )
+    samples_std = collect_all_samples(train_loader) | collect_all_samples(val_in_loader)
     samples_flipped = collect_all_samples(train_loader_flipped) | collect_all_samples(
-        val_loader_flipped
+        val_in_loader_flipped
     )
 
     # Create dictionaries to map input sequences to label sequences for both datasets
@@ -113,14 +114,14 @@ def test_train_val_mutually_exclusive(max_bit_length, training_fraction, curricu
     and ensures that no sample appears in both subsets.
     """
     # Generate binary addition data
-    data_loaders, op_token, eq_token, num_unique_tokens = get_data(
+    train_loader, val_loader, _, op_token, eq_token, num_unique_tokens = get_data(
         operation="x+y_binary",
-        max_number=max_bit_length,
+        max_bit_length_train=max_bit_length,
+        max_bit_length_val_out=max_bit_length + 1,
         training_fraction=training_fraction,
         batch_size=1024,  # Large batch size to collect all samples at once
         curriculum=curriculum,  # Test different curriculum strategies
     )
-    train_loader, val_loader, _, _, _ = data_loaders
 
     # Collect all samples from training and validation datasets
     samples_train = collect_all_samples(train_loader)

@@ -1,5 +1,3 @@
-# data.py
-
 from math import ceil
 import torch
 from torch import Tensor
@@ -13,6 +11,9 @@ DIVISION_MODULO_OPERATIONS = {
 }
 
 ALL_MODULO_OPERATIONS = {
+    "x+y_mod": lambda x, y, p: (x, y, (x + y) % p),
+    "x-y_mod": lambda x, y, p: (x, y, (x - y) % p),
+    "x^2+y^2_mod": lambda x, y, p: (x, y, (x**2 + y**2) % p),
     "x+y": lambda x, y, _: (x, y, x + y),
     "x+y_binary": lambda x, y, _: (x, y, x + y),
     "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
@@ -217,9 +218,11 @@ def get_data(
         train_loader = DataLoader(
             train_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
-        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=True)
+        val_in_loader = DataLoader(
+            val_in_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
+        )
         val_out_loader = DataLoader(
-            dataset_val_out, batch_size=batch_size, shuffle=True
+            dataset_val_out, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
         num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
