@@ -193,10 +193,8 @@ def get_data(
         )
 
         # Split into training and in-domain validation
-        train_size = int(training_fraction * len(dataset_train_val))
-        val_in_size = len(dataset_train_val) - train_size
-        train_dataset, val_in_dataset = torch.utils.data.random_split(
-            dataset_train_val, [train_size, val_in_size]
+        train_dataset, val_in_dataset = split_dataset(
+            dataset_train_val, training_fraction, curriculum
         )
 
         # Generate out-of-domain validation data
@@ -246,12 +244,8 @@ def get_data(
         # Create dataset
         dataset = TensorDataset(inputs, labels)
 
-        # Split into training and validation sets
-        train_size = int(training_fraction * len(dataset))
-        val_size = len(dataset) - train_size
-
-        train_dataset, val_in_dataset = torch.utils.data.random_split(
-            dataset, [train_size, val_size]
+        train_dataset, val_in_dataset = split_dataset(
+            dataset, training_fraction, curriculum
         )
 
         # Generate out-of-domain validation data with larger modulo
@@ -263,9 +257,11 @@ def get_data(
         train_loader = DataLoader(
             train_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
-        val_in_loader = DataLoader(val_in_dataset, batch_size=batch_size, shuffle=True)
+        val_in_loader = DataLoader(
+            val_in_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
+        )
         val_out_loader = DataLoader(
-            val_out_dataset, batch_size=batch_size, shuffle=True
+            val_out_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
         num_unique_tokens = torch.max(labels_out).item() + 2
@@ -322,25 +318,6 @@ def pad_binary_sequences(
     return concatenated_inputs_padded, labels_padded
 
 
-def create_data_loaders(
-    dataset: TensorDataset, training_fraction: float, batch_size: int, curriculum: str
-) -> Tuple[DataLoader, DataLoader, int, int, int]:
-    train_loader, val_loader, op_token, eq_token = split_dataset(
-        dataset, training_fraction, curriculum
-    )
-    num_unique_tokens = eq_token + 1
-    batch_size = min(batch_size, ceil(len(dataset) / 2))
-    return (
-        DataLoader(
-            train_loader, batch_size=batch_size, shuffle=(curriculum == "random")
-        ),
-        DataLoader(val_loader, batch_size=batch_size, shuffle=(curriculum == "random")),
-        op_token,
-        eq_token,
-        num_unique_tokens,
-    )
-
-
 def split_dataset(
     dataset: TensorDataset, training_fraction: float, curriculum: str
 ) -> Tuple[TensorDataset, TensorDataset, int, int]:
@@ -352,17 +329,13 @@ def split_dataset(
             dataset, [train_size, val_size]
         )
     elif curriculum == "ordered":
-        train_dataset, val_dataset = dataset[:train_size], dataset[train_size:]
-    elif curriculum == "domain_separated":
-        # Implement domain separation logic if applicable
-        train_dataset, val_dataset = torch.utils.data.random_split(
-            dataset, [train_size, val_size]
+        train_dataset = TensorDataset(
+            dataset.tensors[0][:train_size], dataset.tensors[1][:train_size]
+        )
+        val_dataset = TensorDataset(
+            dataset.tensors[0][train_size:], dataset.tensors[1][train_size:]
         )
     else:
         raise ValueError(f"Unsupported curriculum: {curriculum}")
 
-    # Placeholder tokens; adjust as necessary
-    op_token = 0
-    eq_token = 0
-
-    return train_dataset, val_dataset, op_token, eq_token
+    return train_dataset, val_dataset

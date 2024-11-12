@@ -1,5 +1,6 @@
 from math import ceil
 import torch
+import os
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 import wandb
@@ -148,8 +149,11 @@ def count_parameters(model: torch.nn.Module) -> int:
 
 
 def initialize_wandb(args: Dict[str, Any]) -> None:
+    if args.wandb_tracking == "disabled":
+        os.environ["WANDB_DISABLED"] = "true"
+    else:
+        os.environ["WANDB_DISABLED"] = "false"
     wandb.init(project="grokking", config=args)
-    config = wandb.config
     wandb.define_metric("Optimization Steps")
     wandb.define_metric("epoch")
     wandb.define_metric("training_set_size")
