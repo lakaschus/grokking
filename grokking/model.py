@@ -43,6 +43,7 @@ class DecoderBlock(nn.Module):
 class Transformer(nn.Module):
     def __init__(
         self,
+        config,
         num_layers: int,
         dim_model: int,
         num_heads: int,
@@ -51,6 +52,10 @@ class Transformer(nn.Module):
         dropout: float = 0.1,
     ):
         super().__init__()
+        self.config = config
+        self.id_to_token = {k: str(k) for k in range(num_tokens)}
+        self.id_to_token[config.eq_token] = " = "
+        self.id_to_token[config.op_token] = " OP "
         self.dropout = dropout
         self.token_embeddings = nn.Embedding(num_tokens, dim_model)
         self.position_embeddings = nn.Embedding(seq_len, dim_model)

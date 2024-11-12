@@ -80,8 +80,9 @@ def main(args: Dict[str, Any]) -> None:
         curriculum=config.curriculum,
     )
 
-    # Get training set size
     config.training_set_size = len(train_loader.dataset)
+    config.op_token = op_token
+    config.eq_token = eq_token
     # log training set size
     wandb.log({"training_set_size": config.training_set_size}, commit=False)
 
@@ -175,6 +176,7 @@ def initialize_model_optimizer_scheduler(
     config: Any, num_unique_tokens: int, seq_len: int, device: torch.device
 ) -> Tuple[Transformer, torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
     model = Transformer(
+        config=config,
         num_layers=config.num_layers,
         dim_model=config.dim_model,
         num_heads=config.num_heads,
@@ -375,7 +377,7 @@ def evaluate(
         for batch in val_loader:
             inputs, labels = [tensor.to(device) for tensor in batch]
             if config.task_type == "classification":
-                loss, correct, num_samples = evaluate_classification(
+                loss, correct, num_samples, preds, trues = evaluate_classification(
                     model, inputs, labels, criterion
                 )
                 total_loss += loss * num_samples
@@ -389,13 +391,9 @@ def evaluate(
                 total_correct += acc * num_samples
                 total_samples += num_samples
                 # Collect validation examples
-                examples_table.extend(
-                    collect_validation_examples(
-                        model, inputs, labels, config, preds, trues
-                    )
-                )
-            else:
-                raise ValueError(f"Unsupported task type: {config.task_type}")
+            examples_table.extend(
+                collect_validation_examples(model, inputs, labels, config, preds, trues)
+            )
 
     # Calculate average loss and accuracy
     avg_loss = total_loss / len(val_loader.dataset)
@@ -425,6 +423,7 @@ def get_evaluation_criterion(config: Any) -> torch.nn.Module:
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
+        # return torch.nn.CrossEntropyLoss(ignore_index=BINARY_TOKENS["<PAD>"])
         return torch.nn.CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported task type: {config.task_type}")
@@ -439,7 +438,7 @@ def evaluate_classification(
     correct = (preds == labels).sum().item()
     # Get examples where the prediction is incorrect
     # incorrect_indices = (preds != labels).nonzero(as_tuple=True)[0]
-    return loss, correct, len(labels)
+    return loss, correct, len(labels), preds, labels
 
 
 def get_logits(model: Transformer, inputs: Tensor) -> Tensor:
@@ -481,12 +480,13 @@ def collect_validation_examples(
     trues: List[str],
 ) -> List[List[str]]:
     examples = []
-    input_example = decode_sequence(inputs[0], ID_TO_TOKEN)
-
     if config.task_type == "classification":
+        # Find op and eq tokens and convert to strings
+        input_example = decode_sequence(inputs[0], model.id_to_token)
         predicted_output = str(torch.argmax(model(inputs)[-1, :, :], dim=1)[0].item())
         true_output = str(labels[0].item())
     else:  # sequence
+        input_example = decode_sequence(inputs[0], ID_TO_TOKEN)
         split_pos = (inputs[0] == BINARY_TOKENS["="]).nonzero()[0][0]
         predicted_output = decode_sequence(preds[0][split_pos:], ID_TO_TOKEN)
         true_output = decode_sequence(trues[0][split_pos:], ID_TO_TOKEN)
