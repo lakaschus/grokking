@@ -40,8 +40,41 @@ BINARY_EQ_TOKEN = BINARY_TOKENS["="]
 BINARY_PAD_TOKEN = BINARY_TOKENS["<PAD>"]
 
 
+def is_prime(n):
+    """Check if a number is prime"""
+    if n < 2:
+        return False
+    if n == 2:
+        return True
+    if n % 2 == 0:
+        return False
+
+    for i in range(3, int(n**0.5) + 1, 2):
+        if n % i == 0:
+            return False
+    return True
+
+
+def get_next_prime(n):
+    """Find the smallest prime number greater than or equal to n"""
+    # Handle small numbers
+    if n <= 2:
+        return 2
+
+    # Start with n and work upwards
+    # If n is even, start with next odd number
+    current = n if n % 2 == 1 else n + 1
+
+    while True:
+        if is_prime(current):
+            return current
+        current += 2  # Only check odd numbers
+
+
 def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, int]:
     x, y = generate_cartesian_product(operation, p)
+    if operation in DIVISION_MODULO_OPERATIONS:
+        p = get_next_prime(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
     op_token, eq_token = define_tokens(labels)
     inputs = create_input_sequences(x, y, op_token, eq_token)
@@ -87,7 +120,7 @@ def binary_divison_data(
     flipped: bool = False,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
-    p = max_bit_length
+    p = get_next_prime(2**max_bit_length)
     xx = (x * y) % p
     z = x
     inputs, labels = encode_binary_sequences(xx, y, z, flipped=flipped)

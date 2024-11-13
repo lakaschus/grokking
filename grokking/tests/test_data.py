@@ -1,7 +1,7 @@
 # test_data.py
 
 import pytest
-from data import get_data
+from data import get_data, get_next_prime
 
 
 def collect_all_samples(data_loader):
@@ -53,3 +53,15 @@ def test_train_val_mutually_exclusive(max_bit_length, training_fraction, curricu
     assert (
         len(intersection) == 0
     ), f"Training and validation datasets are not mutually exclusive. Overlapping samples: {intersection}"
+
+
+def test_get_next_prime():
+    # Test basic cases: exact primes and numbers between primes
+    assert get_next_prime(90) == 97
+    assert get_next_prime(97) == 97
+    assert get_next_prime(96) == 97
+
+    # Test small numbers and edge cases
+    assert get_next_prime(2) == 2
+    assert get_next_prime(1) == 2
+    assert get_next_prime(0) == 2
