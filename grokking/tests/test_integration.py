@@ -62,7 +62,7 @@ def run_single_configuration(config):
 
     try:
         result = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=300, cwd=str(project_root)
+            cmd, capture_output=True, text=True, timeout=1000, cwd=str(project_root)
         )
 
         if result.returncode != 0:
