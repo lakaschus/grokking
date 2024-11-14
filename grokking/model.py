@@ -18,19 +18,22 @@ class DecoderBlock(nn.Module):
     def _build_ffn(self, dim_model: int) -> nn.Sequential:
 
         return nn.Sequential(
-            nn.Linear(dim_model, dim_model * 4),
-            nn.ReLU(),
-            nn.Linear(dim_model * 4, dim_model),
+            nn.Linear(dim_model, dim_model * 4, bias=False),
+            nn.GELU(),
+            nn.Linear(dim_model * 4, dim_model, bias=False),
         )
 
     def forward(self, x: Tensor) -> Tensor:
         attn_mask = self._create_attn_mask(len(x), x.device, x.dtype)
+        x = self.self_attn_norm(x)
         a1, _ = self.self_attn(x, x, x, attn_mask=attn_mask)
         a1 = self.self_attn_drop(a1)
-        a1 = self.self_attn_norm(x + a1)
-        a2 = self.ffn(a1)
+        a1 = x + a1
+
+        a2 = self.ffn_norm(a1)
+        a2 = self.ffn(a2)
         a2 = self.ffn_drop(a2)
-        a2 = self.ffn_norm(a1 + a2)
+        a2 = a1 + a2
         return a2
 
     def _create_attn_mask(
@@ -61,8 +64,9 @@ class Transformer(nn.Module):
         self.position_embeddings = nn.Embedding(seq_len, dim_model)
         self.decoder = self._build_decoder(num_layers, dim_model, num_heads)
         self.output_layer = nn.Sequential(
-            nn.LayerNorm(dim_model), nn.Linear(dim_model, num_tokens)
+            nn.LayerNorm(dim_model), nn.Linear(dim_model, num_tokens, bias=False)
         )
+        self.embedding_dropout = nn.Dropout(p=dropout)
 
     def _build_decoder(
         self, num_layers: int, dim_model: int, num_heads: int
@@ -88,4 +92,4 @@ class Transformer(nn.Module):
             torch.arange(context_len, device=inputs.device), "p -> b p", b=batch_size
         )
         position_embedding = self.position_embeddings(positions)
-        return token_embedding + position_embedding
+        return self.embedding_dropout(token_embedding + position_embedding)
