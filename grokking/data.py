@@ -8,6 +8,7 @@ from typing import Tuple, List
 DIVISION_MODULO_OPERATIONS = {
     "x/y": lambda x, y, p: ((x * y) % p, y, x),
     "x/y_binary": lambda x, y, p: ((x * y) % p, y, x),
+    "x/y_binary_flipped": lambda x, y, p: ((x * y) % p, y, x),
 }
 
 ALL_MODULO_OPERATIONS = {
