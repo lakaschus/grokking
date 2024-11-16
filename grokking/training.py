@@ -81,6 +81,11 @@ def main(args: Dict[str, Any]) -> None:
         curriculum=config.curriculum,
     )
 
+    # Check that training data has no duplicates
+    assert len(train_loader.dataset) == len(
+        set(train_loader.dataset)
+    ), "Training data has duplicates"
+
     config.training_set_size = len(train_loader.dataset)
     config.op_token = op_token
     config.eq_token = eq_token
