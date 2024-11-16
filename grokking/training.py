@@ -42,14 +42,13 @@ def save_to_json(
 
 
 def log_model_parameters_wandb(model: torch.nn.Module) -> None:
-    weight_norm = []
+    weight_norms = []
     for name, param in model.named_parameters():
         param_np = param.detach().cpu()
-        weight_norm.append(torch.norm(param_np).item())
+        weight_norms.append(torch.norm(param_np).item())
         wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
-    wandb.log(
-        {"parameters/weight_norm": sum(weight_norm) / len(weight_norm)}, commit=False
-    )
+    total_weight_norm = sum(weight_norms) / len(weight_norms)
+    wandb.log({"parameters/weights_norm": total_weight_norm}, commit=False)
 
 
 def clear_logs() -> None:
@@ -306,7 +305,7 @@ def train_sequence(
     output, target, eq_positions = get_logits(
         model, inputs
     )  # [batch_size, seq_len -1, num_tokens]
-    loss, acc = compute_sequence_loss_and_accuracy(
+    loss, acc, _ = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
     return output, loss, acc
@@ -333,7 +332,7 @@ def compute_sequence_loss_and_accuracy(
     preds = torch.argmax(masked_output, dim=1)
     # preds = torch.argmax(output.transpose(1, 2), dim=1)
     acc = (preds == masked_target).float().mean()
-    return loss, acc
+    return loss, acc, mask
 
 
 def generate_flat_tensors(inputs: Tensor) -> Tuple[Tensor, Tensor]:
@@ -398,8 +397,8 @@ def evaluate(
                 total_correct += correct
                 total_samples += num_samples
             elif config.task_type == "sequence":
-                loss, acc, num_samples, preds, trues = evaluate_sequence(
-                    model, inputs, labels, criterion, config
+                loss, acc, num_samples, preds, trues, sequence_accuracy = (
+                    evaluate_sequence(model, inputs, labels, criterion, config)
                 )
                 total_loss += loss.item() * num_samples
                 total_correct += acc * num_samples
@@ -413,7 +412,7 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 5 == 0:
+    if wandb.run.step % 50 == 0:
         with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
         if config.wandb_tracking != "minimal":
@@ -425,6 +424,9 @@ def evaluate(
         f"validation_{validation_type}/loss": avg_loss,
         "Optimization Steps": optimizer.training_steps,
     }
+
+    if config.task_type == "sequence":
+        metrics[f"validation_{validation_type}/sequence_accuracy"] = sequence_accuracy
 
     next_step = True if validation_type == "in_domain" else False
 
@@ -471,7 +473,7 @@ def evaluate_sequence(
     config: Any,
 ) -> Tuple[float, float, int, List[str], List[str]]:
     output, target, eq_positions = get_logits(model, inputs)
-    loss, acc = compute_sequence_loss_and_accuracy(
+    loss, acc, mask = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
 
@@ -482,7 +484,10 @@ def evaluate_sequence(
     correct = acc.item() * len(target)
     num_samples = len(target)
 
-    return loss, acc, num_samples, preds, target
+    # Calculate the sequence accuracy
+    sequence_correct = torch.all((preds == target) | ~mask, dim=1).float().mean()
+
+    return loss, acc, num_samples, preds, target, sequence_correct
 
 
 def collect_validation_examples(
