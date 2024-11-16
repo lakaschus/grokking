@@ -42,9 +42,14 @@ def save_to_json(
 
 
 def log_model_parameters_wandb(model: torch.nn.Module) -> None:
+    weight_norm = []
     for name, param in model.named_parameters():
-        param_np = param.detach().cpu().numpy()
+        param_np = param.detach().cpu()
+        weight_norm.append(torch.norm(param_np).item())
         wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
+    wandb.log(
+        {"parameters/weight_norm": sum(weight_norm) / len(weight_norm)}, commit=False
+    )
 
 
 def clear_logs() -> None:
@@ -408,7 +413,7 @@ def evaluate(
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
 
-    if wandb.run.step % 50 == 0:
+    if wandb.run.step % 5 == 0:
         with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
             json.dump({f"Step {wandb.run.step}": examples_table}, f, indent=4)
         if config.wandb_tracking != "minimal":
