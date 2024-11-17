@@ -1,13 +1,11 @@
 from argparse import ArgumentParser
 
-from data import ALL_OPERATIONS
 import training
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument(
-        "--operation", type=str, choices=ALL_OPERATIONS.keys(), default="x/y"
-    )
+    parser.add_argument("--operation", type=str, default="x/y")
+    parser.add_argument("--multitask", action="store_true", default=False)
     parser.add_argument("--curriculum", type=str, default="random")
     parser.add_argument("--task_type", type=str, default="classification")
     parser.add_argument("--training_fraction", type=float, default=0.5)

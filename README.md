@@ -1,10 +1,10 @@
 # Grokking
 
-An implementation of the OpenAI 'Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets' paper in PyTorch. Forked from:
+An implementation of the OpenAI 'Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets' paper in PyTorch. Originally forked and modified from:
 
 https://github.com/danielmamay/grokking
 
-<img src="grokking.png" height="300">
+<img src="figures/grokking.png" height="300">
 
 ## Extension
 

@@ -2,6 +2,7 @@
 
 import pytest
 from data import get_data, get_next_prime
+from data import operation_mod_p_data, ALL_OPERATIONS
 
 
 def collect_all_samples(data_loader):
@@ -65,3 +66,168 @@ def test_get_next_prime():
     assert get_next_prime(2) == 2
     assert get_next_prime(1) == 2
     assert get_next_prime(0) == 2
+
+
+def test_operation_mod_p_data_simple():
+    """Test basic operations with small modulo value to verify correctness"""
+    p = 7
+
+    # Test x+y_mod
+    inputs, labels, _, _ = operation_mod_p_data("x+y_mod", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        assert (
+            result == (x + y) % p
+        ), f"x+y_mod failed: {x} + {y} mod {p} should be {(x + y) % p}, got {result}"
+
+    # Test x-y_mod
+    inputs, labels, _, _ = operation_mod_p_data("x-y_mod", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        assert (
+            result == (x - y) % p
+        ), f"x-y_mod failed: {x} - {y} mod {p} should be {(x - y) % p}, got {result}"
+
+    # Test x^2+y^2_mod
+    inputs, labels, _, _ = operation_mod_p_data("x^2+y^2_mod", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        assert (
+            result == (x**2 + y**2) % p
+        ), f"x^2+y^2_mod failed: {x}^2 + {y}^2 mod {p} should be {(x**2 + y**2) % p}, got {result}"
+
+    # Test x^3+xy+y^2_mod
+    inputs, labels, _, _ = operation_mod_p_data("x^3+xy+y^2_mod", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        expected = (x**3 + x * y + y**2) % p
+        assert (
+            result == expected
+        ), f"x^3+xy+y^2_mod failed: {x}^3 + {x}*{y} + {y}^2 mod {p} should be {expected}, got {result}"
+
+    # Test x^3+xy+y^2+x_mod
+    inputs, labels, _, _ = operation_mod_p_data("x^3+xy+y^2+x_mod", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        expected = (x**3 + x * y + y**2 + x) % p
+        assert (
+            result == expected
+        ), f"x^3+xy+y^2+x_mod failed: {x}^3 + {x}*{y} + {y}^2 + {x} mod {p} should be {expected}, got {result}"
+
+
+def test_regular_addition():
+    """Test regular addition without modulo"""
+    p = 5  # Value doesn't matter for regular addition
+    inputs, labels, _, _ = operation_mod_p_data("x+y", p)
+    for i in range(len(inputs)):
+        x, op, y, _ = inputs[i]
+        result = labels[i]
+        assert result == x + y, f"x+y failed: {x} + {y} should be {x + y}, got {result}"
+
+
+def test_dataset_sizes():
+    """Test that datasets have expected sizes based on modulo value"""
+    p = 5
+    expected_size = p * p  # Cartesian product of numbers 0 to p-1
+
+    for operation in [
+        "x+y_mod",
+        "x-y_mod",
+        "x^2+y^2_mod",
+        "x^3+xy+y^2_mod",
+        "x^3+xy+y^2+x_mod",
+        "x+y",
+    ]:
+        inputs, labels, _, _ = operation_mod_p_data(operation, p)
+        assert (
+            len(inputs) == expected_size
+        ), f"{operation} dataset size should be {expected_size}, got {len(inputs)}"
+        assert (
+            len(labels) == expected_size
+        ), f"{operation} labels size should be {expected_size}, got {len(labels)}"
+
+
+@pytest.mark.parametrize(
+    "operation",
+    ["x+y_mod", "x-y_mod", "x^2+y^2_mod", "x^3+xy+y^2_mod", "x^3+xy+y^2+x_mod", "x+y"],
+)
+def test_dataloader_operations(operation):
+    """Test that the data in the DataLoader matches expected calculations"""
+    # Use small numbers for easy verification
+    max_bit_length_train = 6
+    max_bit_length_val_out = 7
+    batch_size = 4
+
+    # Get the actual modulo (next prime number) for modulo operations
+    modulo = (
+        get_next_prime(max_bit_length_train)
+        if "mod" in operation
+        else max_bit_length_train
+    )
+
+    # Get dataloaders
+    train_loader, val_in_loader, val_out_loader, op_token, eq_token, num_tokens = (
+        get_data(
+            operation=operation,
+            max_bit_length_train=max_bit_length_train,
+            max_bit_length_val_out=max_bit_length_val_out,
+            batch_size=batch_size,
+            training_fraction=0.8,
+            curriculum="random",
+        )
+    )
+
+    # Check a batch from each loader
+    for loader in [train_loader, val_in_loader]:
+        batch_inputs, batch_labels = next(iter(loader))
+
+        # Check each sample in the batch
+        for i in range(len(batch_inputs)):
+            x = batch_inputs[i][0].item()  # First element is x
+            y = batch_inputs[i][2].item()  # Third element is y
+            result = batch_labels[i].item()
+
+            # Calculate expected result based on operation
+            if operation == "x+y_mod":
+                expected = (x + y) % modulo
+            elif operation == "x-y_mod":
+                expected = (x - y) % modulo
+            elif operation == "x^2+y^2_mod":
+                expected = (x**2 + y**2) % modulo
+            elif operation == "x^3+xy+y^2_mod":
+                expected = (x**3 + x * y + y**2) % modulo
+            elif operation == "x^3+xy+y^2+x_mod":
+                expected = (x**3 + x * y + y**2 + x) % modulo
+            elif operation == "x+y":
+                expected = x + y
+
+            assert result == expected, (
+                f"{operation} failed in DataLoader:\n"
+                f"x={x}, y={y}\n"
+                f"modulo={modulo}\n"
+                f"Expected {expected}, got {result}"
+            )
+
+        # Basic checks for tensor shapes and token values
+        assert (
+            batch_inputs.dim() == 2
+        ), f"Expected 2D tensor for inputs, got {batch_inputs.dim()}D"
+        assert (
+            batch_labels.dim() == 1
+        ), f"Expected 1D tensor for labels, got {batch_labels.dim()}D"
+        assert (
+            batch_inputs.size(0) <= batch_size
+        ), f"Batch size exceeded: {batch_inputs.size(0)} > {batch_size}"
+
+        # Check that operation and equals tokens are in correct positions
+        assert (
+            batch_inputs[:, 1] == op_token
+        ).all(), "Operation token not in correct position"
+        assert (
+            batch_inputs[:, 3] == eq_token
+        ).all(), "Equals token not in correct position"

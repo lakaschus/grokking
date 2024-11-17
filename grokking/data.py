@@ -15,6 +15,8 @@ ALL_MODULO_OPERATIONS = {
     "x+y_mod": lambda x, y, p: (x, y, (x + y) % p),
     "x-y_mod": lambda x, y, p: (x, y, (x - y) % p),
     "x^2+y^2_mod": lambda x, y, p: (x, y, (x**2 + y**2) % p),
+    "x^3+xy+y^2_mod": lambda x, y, p: (x, y, (x**3 + x * y + y**2) % p),
+    "x^3+xy+y^2+x_mod": lambda x, y, p: (x, y, (x**3 + x * y + y**2 + x) % p),
     "x+y": lambda x, y, _: (x, y, x + y),
     "x+y_binary": lambda x, y, _: (x, y, x + y),
     "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
@@ -72,12 +74,14 @@ def get_next_prime(n):
         current += 2  # Only check odd numbers
 
 
-def operation_mod_p_data(operation: str, p: int) -> Tuple[Tensor, Tensor, int, int]:
+def operation_mod_p_data(
+    operation: str, p: int, increment_eq_token: int = 0
+) -> Tuple[Tensor, Tensor, int, int]:
     x, y = generate_cartesian_product(operation, p)
-    if operation in DIVISION_MODULO_OPERATIONS:
-        p = get_next_prime(p)
+    p = get_next_prime(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
     op_token, eq_token = define_tokens(labels)
+    eq_token += increment_eq_token
     inputs = create_input_sequences(x, y, op_token, eq_token)
     return inputs, labels, op_token, eq_token
 
@@ -196,6 +200,7 @@ def get_data(
     training_fraction: float = 0.8,
     batch_size: int = 32,
     curriculum: str = "random",
+    increment_eq_token: int = 0,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
     if "binary" in operation:
         flipped = True if "flipped" in operation else False
@@ -273,7 +278,9 @@ def get_data(
     elif operation in ALL_MODULO_OPERATIONS:
         # Generate training and validation data for modulo operations
         p = max_bit_length_train
-        inputs, labels, op_token, eq_token = operation_mod_p_data(operation, p)
+        inputs, labels, op_token, eq_token = operation_mod_p_data(
+            operation, p, increment_eq_token
+        )
 
         # Create dataset
         dataset = TensorDataset(inputs, labels)
@@ -284,7 +291,10 @@ def get_data(
 
         # Generate out-of-domain validation data with larger modulo
         p_out = max_bit_length_val_out
-        inputs_out, labels_out, _, _ = operation_mod_p_data(operation, p_out)
+        # TODO: Val Out not working because id of op and eq token change compared to train and val in set
+        inputs_out, labels_out, _, _ = operation_mod_p_data(
+            operation, p_out, increment_eq_token
+        )
         val_out_dataset = TensorDataset(inputs_out, labels_out)
 
         # Create DataLoaders

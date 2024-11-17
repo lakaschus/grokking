@@ -9,6 +9,7 @@ from typing import Dict, Any, Tuple, List
 import json
 
 from data import get_data, BINARY_TOKENS
+from multitask_data import get_multitask_data
 from model import Transformer
 
 
@@ -67,6 +68,11 @@ def main(args: Dict[str, Any]) -> None:
     initialize_wandb(args)
     config = wandb.config
     device = torch.device(config.device)
+    operation = config.operation
+    generate_data = get_data
+    if config.multitask:
+        operation = config.operation.split(",")
+        generate_data = get_multitask_data
 
     # Retrieve DataLoaders
     (
@@ -76,8 +82,8 @@ def main(args: Dict[str, Any]) -> None:
         op_token,
         eq_token,
         num_unique_tokens,
-    ) = get_data(
-        config.operation,
+    ) = generate_data(
+        operation,
         max_bit_length_train=config.max_bit_length_train,  # e.g., 6
         max_bit_length_val_out=config.max_bit_length_val_out,  # e.g., 7
         training_fraction=config.training_fraction,
