@@ -75,13 +75,14 @@ def get_next_prime(n):
 
 
 def operation_mod_p_data(
-    operation: str, p: int, increment_eq_token: int = 0
+    operation: str, p: int, increment_eq_token: int = 0, increment_op_token: int = 0
 ) -> Tuple[Tensor, Tensor, int, int]:
     x, y = generate_cartesian_product(operation, p)
     p = get_next_prime(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
     op_token, eq_token = define_tokens(labels)
     eq_token += increment_eq_token
+    op_token += increment_op_token
     inputs = create_input_sequences(x, y, op_token, eq_token)
     return inputs, labels, op_token, eq_token
 
@@ -276,10 +277,18 @@ def get_data(
         )
 
     elif operation in ALL_MODULO_OPERATIONS:
+        # Generate out-of-domain validation data with larger modulo
+        p_out = max_bit_length_val_out
+        # TODO: Val Out not working for multitask because id of op and eq token change compared to train and val in set
+        inputs_out, labels_out, _, _ = operation_mod_p_data(
+            operation, p_out, increment_eq_token
+        )
+
         # Generate training and validation data for modulo operations
+        p_diff = max_bit_length_val_out - max_bit_length_train
         p = max_bit_length_train
         inputs, labels, op_token, eq_token = operation_mod_p_data(
-            operation, p, increment_eq_token
+            operation, p, increment_eq_token + p_diff, p_diff
         )
 
         # Create dataset
@@ -289,11 +298,9 @@ def get_data(
             dataset, training_fraction, curriculum
         )
 
-        # Generate out-of-domain validation data with larger modulo
-        p_out = max_bit_length_val_out
-        # TODO: Val Out not working because id of op and eq token change compared to train and val in set
-        inputs_out, labels_out, _, _ = operation_mod_p_data(
-            operation, p_out, increment_eq_token
+        # Select only those examples that are not in the training_dataset set or val_in_dataset
+        inputs_out, labels_out = select_out_of_domain_examples(
+            inputs_out, labels_out, dataset
         )
         val_out_dataset = TensorDataset(inputs_out, labels_out)
 
@@ -308,7 +315,7 @@ def get_data(
             val_out_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
-        num_unique_tokens = torch.max(labels_out).item() + 2
+        num_unique_tokens = max_bit_length_val_out + 2
 
         return (
             train_loader,
@@ -318,6 +325,42 @@ def get_data(
             eq_token,
             num_unique_tokens,
         )
+
+
+def select_out_of_domain_examples(
+    inputs_out: Tensor, labels_out: Tensor, dataset: TensorDataset
+) -> Tuple[Tensor, Tensor]:
+    """
+    Select examples from inputs_out and labels_out that are not present in the dataset.
+
+    Args:
+        inputs_out (Tensor): Input tensor containing out-of-domain examples
+        labels_out (Tensor): Label tensor containing out-of-domain examples
+        dataset (TensorDataset): Dataset containing training examples to exclude
+
+    Returns:
+        Tuple[Tensor, Tensor]: Filtered inputs and labels tensors containing only out-of-domain examples
+    """
+    # Convert training dataset inputs and labels to sets of tuples for efficient lookup
+    training_examples = set(
+        tuple(inp.tolist()) + tuple([lab.item()])
+        for inp, lab in zip(dataset.tensors[0], dataset.tensors[1])
+    )
+
+    # Create masks for examples that are truly out of domain
+    out_domain_masks = []
+    for inp, lab in zip(inputs_out, labels_out):
+        example = tuple(inp.tolist()) + tuple([lab.item()])
+        out_domain_masks.append(example not in training_examples)
+
+    # Convert mask to tensor
+    mask = torch.tensor(out_domain_masks)
+
+    # Filter inputs and labels using the mask
+    filtered_inputs = inputs_out[mask]
+    filtered_labels = labels_out[mask]
+
+    return filtered_inputs, filtered_labels
 
 
 def pad_sequence_to_length(

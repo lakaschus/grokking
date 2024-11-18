@@ -128,15 +128,14 @@ def main(args: Dict[str, Any]) -> None:
         )
 
         # Out-of-Domain Validation
-        if args.task_type != "classification":
-            val_out_metrics = evaluate(
-                model,
-                val_out_loader,
-                device,
-                optimizer,
-                config,
-                validation_type="out_of_domain",
-            )
+        val_out_metrics = evaluate(
+            model,
+            val_out_loader,
+            device,
+            optimizer,
+            config,
+            validation_type="out_of_domain",
+        )
 
         # Save the best model based on In-Domain Validation Accuracy
         best_val_acc = save_best_model(
@@ -526,9 +525,6 @@ def collect_validation_examples(
         }
     )
     return examples
-
-
-# training.py
 
 
 def save_best_model(

@@ -1,8 +1,15 @@
 # test_data.py
 
 import pytest
-from data import get_data, get_next_prime
-from data import operation_mod_p_data, ALL_OPERATIONS
+from data import (
+    get_data,
+    get_next_prime,
+    operation_mod_p_data,
+    select_out_of_domain_examples,
+    ALL_OPERATIONS,
+)
+import torch
+from torch.utils.data import TensorDataset
 
 
 def collect_all_samples(data_loader):
@@ -231,3 +238,41 @@ def test_dataloader_operations(operation):
         assert (
             batch_inputs[:, 3] == eq_token
         ).all(), "Equals token not in correct position"
+
+
+def test_select_out_of_domain_examples():
+    # Create a simple training dataset
+    train_inputs = torch.tensor([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12]])
+    train_labels = torch.tensor([100, 200, 300])
+    train_dataset = TensorDataset(train_inputs, train_labels)
+
+    # Create out-of-domain examples including both overlapping and new examples
+    inputs_out = torch.tensor(
+        [
+            [1, 2, 3, 4],  # Should be filtered (exists in training)
+            [5, 6, 7, 8],  # Should be filtered (exists in training)
+            [13, 14, 15, 16],  # Should remain (new example)
+            [17, 18, 19, 20],  # Should remain (new example)
+        ]
+    )
+    labels_out = torch.tensor([100, 200, 400, 500])
+
+    # Get filtered examples
+    filtered_inputs, filtered_labels = select_out_of_domain_examples(
+        inputs_out, labels_out, train_dataset
+    )
+
+    # Verify the shape of filtered tensors
+    assert filtered_inputs.shape[0] == 2, "Should have 2 examples after filtering"
+    assert filtered_labels.shape[0] == 2, "Should have 2 labels after filtering"
+
+    # Verify that the correct examples were kept
+    expected_inputs = torch.tensor([[13, 14, 15, 16], [17, 18, 19, 20]])
+    expected_labels = torch.tensor([400, 500])
+
+    assert torch.equal(
+        filtered_inputs, expected_inputs
+    ), "Filtered inputs don't match expected"
+    assert torch.equal(
+        filtered_labels, expected_labels
+    ), "Filtered labels don't match expected"
