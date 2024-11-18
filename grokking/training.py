@@ -150,7 +150,7 @@ def main(args: Dict[str, Any]) -> None:
             max_sequence_length=max_sequence_length,
         )
 
-        if val_in_metrics["accuracy"] >= 1.0:
+        if val_in_metrics["accuracy"] >= 1.0 and not config.continue_training:
             wandb.finish()
             print(
                 f"Training completed successfully after {optimizer.training_steps} steps."
