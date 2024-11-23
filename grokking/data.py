@@ -4,6 +4,7 @@ from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Tuple, List
+import numpy as np
 
 DIVISION_MODULO_OPERATIONS = {
     "x/y": lambda x, y, p: ((x * y) % p, y, x),
@@ -17,15 +18,23 @@ ALL_MODULO_OPERATIONS = {
     "x^2+y^2_mod": lambda x, y, p: (x, y, (x**2 + y**2) % p),
     "x^3+xy+y^2_mod": lambda x, y, p: (x, y, (x**3 + x * y + y**2) % p),
     "x^3+xy+y^2+x_mod": lambda x, y, p: (x, y, (x**3 + x * y + y**2 + x) % p),
+    **DIVISION_MODULO_OPERATIONS,
+}
+
+NEW_OPERATIONS = {
     "x+y": lambda x, y, _: (x, y, x + y),
     "x+y_binary": lambda x, y, _: (x, y, x + y),
     "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
     "x-y": lambda x, y, _: (x, y, x - y),
-    **DIVISION_MODULO_OPERATIONS,
+    "x,y_max": lambda x, y, _: (x, y, np.maximum(x, y)),
+    "x,y_min": lambda x, y, _: (x, y, np.minimum(x, y)),
+    "x,y_avg": lambda x, y, _: (x, y, (x + y) // 2),
+    "x,y_sqrt": lambda x, y, _: (x, y, ((x * y) ** (1 / 2)).long()),
 }
 
 ALL_OPERATIONS = {
     **ALL_MODULO_OPERATIONS,
+    **NEW_OPERATIONS,
 }
 
 BINARY_TOKENS = {
@@ -276,7 +285,7 @@ def get_data(
             num_unique_tokens,
         )
 
-    elif operation in ALL_MODULO_OPERATIONS:
+    elif operation in ALL_OPERATIONS:
         # Generate out-of-domain validation data with larger modulo
         p_out = max_bit_length_val_out
         # TODO: Val Out not working for multitask because id of op and eq token change compared to train and val in set

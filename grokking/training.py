@@ -47,9 +47,9 @@ def log_model_parameters_wandb(model: torch.nn.Module) -> None:
     for name, param in model.named_parameters():
         param_np = param.detach().cpu()
         weight_norms.append(torch.norm(param_np).item())
-        wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
+        # wandb.log({f"parameters/{name}": wandb.Histogram(param_np)}, commit=False)
     total_weight_norm = sum(weight_norms) / len(weight_norms)
-    wandb.log({"parameters/weights_norm": total_weight_norm}, commit=False)
+    wandb.log({"model_weights/weights_norm": total_weight_norm}, commit=False)
 
 
 def clear_logs() -> None:
@@ -115,40 +115,35 @@ def main(args: Dict[str, Any]) -> None:
     )
     optimizer.training_steps = 0
 
-    num_epochs = calculate_num_epochs(config.num_steps, len(train_loader))
+    num_epochs = calculate_num_epochs(config.num_steps, config.training_set_size)
     best_val_acc = 0.0
+
+    current_epoch = 0
 
     for epoch in tqdm(range(num_epochs), desc="Epochs"):
         # Training
         train_metrics = train(model, train_loader, optimizer, scheduler, device, config)
 
-        # In-Domain Validation
-        val_in_metrics = evaluate(
-            model, val_in_loader, device, optimizer, config, validation_type="in_domain"
-        )
+        if current_epoch % 10 == 0:
+            # In-Domain Validation
+            val_in_metrics = evaluate(
+                model,
+                val_in_loader,
+                device,
+                optimizer,
+                config,
+                validation_type="in_domain",
+            )
 
-        # Out-of-Domain Validation
-        val_out_metrics = evaluate(
-            model,
-            val_out_loader,
-            device,
-            optimizer,
-            config,
-            validation_type="out_of_domain",
-        )
-
-        # Save the best model based on In-Domain Validation Accuracy
-        best_val_acc = save_best_model(
-            val_acc=val_in_metrics["accuracy"],
-            best_val_acc=best_val_acc,
-            model=model,
-            optimizer=optimizer,
-            config=config,
-            epoch=epoch,
-            op_token=op_token,
-            eq_token=eq_token,
-            max_sequence_length=max_sequence_length,
-        )
+            # Out-of-Domain Validation
+            val_out_metrics = evaluate(
+                model,
+                val_out_loader,
+                device,
+                optimizer,
+                config,
+                validation_type="out_of_domain",
+            )
 
         if val_in_metrics["accuracy"] >= 1.0 and not config.continue_training:
             wandb.finish()
@@ -233,7 +228,7 @@ def track_grads(model: torch.nn.Module) -> Dict[str, float]:
     # Add total gradient norm across all parameters
     total_grad_norm = sum(gradient_norms.values())
     gradient_norms["gradients/total_abs_sum"] = total_grad_norm
-    return gradient_norms
+    return {"gradients/total_abs_sum": total_grad_norm}
 
 
 def train(
