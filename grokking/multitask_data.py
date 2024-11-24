@@ -33,6 +33,7 @@ class MultitaskDataGenerator:
                 num_unique_tokens,
             ) = get_data(
                 operation=task,
+                task_type="classification",  # To be generalized
                 max_bit_length_train=max_bit_length_train,
                 max_bit_length_val_out=max_bit_length_val_out,
                 training_fraction=training_fraction,
@@ -84,6 +85,7 @@ def get_multitask_data(
     training_fraction: float = 0.8,
     batch_size: int = 32,
     curriculum: str = "random",
+    base: int = 2,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, Dict[str, int], int, int]:
     """
     Convenience function to generate multitask datasets.

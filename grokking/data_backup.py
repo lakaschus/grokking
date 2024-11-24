@@ -1,10 +1,10 @@
+from math import ceil
 import torch
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, TensorDataset
 from typing import Tuple, List
 import numpy as np
-from data_encoder import Encoder
 
 DIVISION_MODULO_OPERATIONS = {
     "x/y": lambda x, y, p: ((x * y) % p, y, x),
@@ -40,19 +40,13 @@ ALL_OPERATIONS = {
     **NEW_OPERATIONS,
 }
 
-BINARY_ENCODER = Encoder(base=2)
-BINARY_OP_TOKEN = BINARY_ENCODER.op_token
-BINARY_EQ_TOKEN = BINARY_ENCODER.eq_token
-BINARY_EOS_TOKEN = BINARY_ENCODER.eos_token
-BINARY_PAD_TOKEN = BINARY_ENCODER.pad_token
-
 BINARY_TOKENS = {
     "0": 0,
     "1": 1,
-    "+": BINARY_OP_TOKEN,
-    "=": BINARY_EQ_TOKEN,
-    "<EOS>": BINARY_EOS_TOKEN,
-    "<PAD>": BINARY_PAD_TOKEN,
+    "+": 2,
+    "=": 3,
+    "<EOS>": 4,
+    "<PAD>": 5,
 }  # Example token index
 
 # Update op_token and eq_token if necessary
@@ -125,39 +119,16 @@ def create_input_sequences(
     return torch.stack([x, op, y, eq], dim=1)
 
 
-def encode_generic_sequences(
-    x: Tensor, y: Tensor, result: Tensor, encoder: Encoder, flipped: bool = False
-) -> Tuple[List[List[int]], List[int]]:
-    inputs = []
-    labels = []
-    for a, b, c in zip(x, y, result):
-        # Encode the operation sequence: a + b = c
-        operation_seq = encoder.encode_sequence(
-            a.item(), b.item(), operation="+", flipped=flipped
-        )
-        # Append the encoded answer to the input sequence
-        answer_seq = encoder.encode_label_sequence(c.item(), flipped=flipped)
-        input_seq = operation_seq + answer_seq
-        # Labels are the answer sequence only
-        label_seq = answer_seq
-        inputs.append(input_seq)
-        labels.append(label_seq)
-    return inputs, labels
-
-
 def binary_addition_data(
     out_domain: bool = False,
     min_bit_length: int = 1,
     max_bit_length: int = 6,
     flipped: bool = False,
-    encoder: Encoder = BINARY_ENCODER,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length)
     sum_xy = x + y
-    inputs, labels = encode_generic_sequences(
-        x, y, sum_xy, encoder=encoder, flipped=flipped
-    )
-    return inputs, labels, encoder.op_token, encoder.eq_token
+    inputs, labels = encode_binary_sequences(x, y, sum_xy, flipped=flipped)
+    return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
 def binary_divison_data(
@@ -165,16 +136,13 @@ def binary_divison_data(
     min_bit_length: int = 1,
     max_bit_length: int = 6,
     flipped: bool = False,
-    encoder: Encoder = BINARY_ENCODER,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
     p = get_next_prime(2**max_bit_length)
     xx = (x * y) % p
     z = x
-    inputs, labels = encode_generic_sequences(
-        xx, y, z, encoder=encoder, flipped=flipped
-    )
-    return inputs, labels, encoder.op_token, encoder.eq_token
+    inputs, labels = encode_binary_sequences(xx, y, z, flipped=flipped)
+    return inputs, labels, BINARY_OP_TOKEN, BINARY_EQ_TOKEN
 
 
 def generate_binary_operands(
@@ -205,9 +173,24 @@ def generate_binary_operands(
 def encode_binary_sequences(
     x: Tensor, y: Tensor, sum_xy: Tensor, flipped: bool = False
 ) -> Tuple[List[List[int]], List[List[int]]]:
-    return encode_generic_sequences(
-        x, y, sum_xy, encoder=BINARY_ENCODER, flipped=flipped
-    )
+    inputs = []
+    labels = []
+    for a, b, c in zip(x, y, sum_xy):
+        a_bin = bin(a)[2:] if a != 0 else "0"
+        b_bin = bin(b)[2:] if b != 0 else "0"
+        c_bin = bin(c)[2:] if c != 0 else "0"
+
+        if flipped:
+            a_bin = a_bin[::-1]  # Flip the digits
+            b_bin = b_bin[::-1]
+            c_bin = c_bin[::-1]
+
+        input_seq = encode_sequence(a_bin, b_bin)
+        label_seq = encode_label_sequence(c_bin)
+        inputs.append(input_seq)
+        labels.append(label_seq)
+
+    return inputs, labels
 
 
 def encode_sequence(a_bin: str, b_bin: str) -> List[int]:
@@ -223,112 +206,39 @@ def encode_label_sequence(c_bin: str) -> List[int]:
     return [BINARY_TOKENS[bit] for bit in c_bin] + [BINARY_TOKENS["<EOS>"]]
 
 
-def pad_generic_sequences(
-    inputs: List[List[int]], labels: List[List[int]], encoder: Encoder
-) -> Tuple[Tensor, Tensor]:
-    """
-    Pad input and label sequences based on the encoder's requirements.
-
-    Args:
-        inputs (List[List[int]]): List of input sequences.
-        labels (List[List[int]]): List of label sequences.
-        encoder (Encoder): Encoder instance.
-
-    Returns:
-        Tuple[Tensor, Tensor]: Padded input and label tensors.
-    """
-    # Determine maximum lengths based on the base and task
-    max_input_length = max(len(seq) for seq in inputs)
-    max_label_length = max(len(seq) for seq in labels)
-
-    inputs_padded = pad_sequence(
-        [torch.tensor(seq) for seq in inputs],
-        batch_first=True,
-        padding_value=encoder.pad_token,
-    )
-    labels_padded = pad_sequence(
-        [torch.tensor(seq) for seq in labels],
-        batch_first=True,
-        padding_value=encoder.pad_token,
-    )
-    # Ensure all sequences are of the same length
-    inputs_padded = pad_sequence_to_length(
-        inputs_padded,
-        max_input_length,
-        batch_first=True,
-        padding_value=encoder.pad_token,
-    )
-    labels_padded = pad_sequence_to_length(
-        labels_padded,
-        max_label_length,
-        batch_first=True,
-        padding_value=encoder.pad_token,
-    )
-
-    return inputs_padded, labels_padded
-
-
 def get_data(
     operation: str,
-    task_type: str,
     max_bit_length_train: int,
     max_bit_length_val_out: int,
-    base: int = 2,
     training_fraction: float = 0.8,
     batch_size: int = 32,
     curriculum: str = "random",
     increment_eq_token: int = 0,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
-    """
-    Generate DataLoaders for training, in-domain validation, and out-of-domain validation.
-
-    Args:
-        operation (str): The operation to perform (e.g., "x+y_binary", "x+y").
-        max_bit_length_train (int): Maximum bit length for training data.
-        max_bit_length_val_out (int): Maximum bit length for out-of-domain validation data.
-        base (int): Numerical base for encoding (default is 2 for binary).
-        training_fraction (float): Fraction of data to use for training.
-        batch_size (int): Batch size for DataLoaders.
-        curriculum (str): Curriculum strategy ("random" or "ordered").
-        increment_eq_token (int): Token increment for the equal sign.
-
-    Returns:
-        Tuple[DataLoader, DataLoader, DataLoader, int, int, int]: DataLoaders and token info.
-    """
-    encoder = Encoder(base=base)
-    if task_type == "sequence":
-        flipped = "flipped" in operation
+    if "binary" in operation:
+        flipped = True if "flipped" in operation else False
         if "x+y" in operation:
             task_method = binary_addition_data
         elif "x/y" in operation:
             task_method = binary_divison_data
-        else:
-            raise ValueError(f"Unsupported binary operation: {operation}")
-
         # Generate training and in-domain validation data
         inputs_train_val, labels_train_val, _, _ = task_method(
-            out_domain=False,
-            min_bit_length=1,
             max_bit_length=max_bit_length_train,
             flipped=flipped,
-            encoder=encoder,
         )
-        inputs_train_val_padded, labels_train_val_padded = pad_generic_sequences(
-            inputs_train_val, labels_train_val, encoder=encoder
+        inputs_train_val_padded, labels_train_val_padded = pad_binary_sequences(
+            inputs_train_val, labels_train_val
         )
-
         max_input_length = (
             2 * max_bit_length_val_out + (max_bit_length_val_out + 1) + 3
         )  # two summands, result which can be have one more digit, plus token, eq token, eos token
         max_label_length = (max_bit_length_val_out + 1) + 1
-
         inputs_train_val_padded = pad_sequence_to_length(
-            inputs_train_val_padded, max_input_length, padding_value=encoder.pad_token
+            inputs_train_val_padded, max_input_length
         )
         labels_train_val_padded = pad_sequence_to_length(
-            labels_train_val_padded, max_label_length, padding_value=encoder.pad_token
+            labels_train_val_padded, max_label_length
         )
-
         dataset_train_val = TensorDataset(
             torch.as_tensor(inputs_train_val_padded),
             torch.as_tensor(labels_train_val_padded),
@@ -345,10 +255,9 @@ def get_data(
             min_bit_length=max_bit_length_train,
             max_bit_length=max_bit_length_val_out,
             flipped=flipped,
-            encoder=encoder,
         )
-        inputs_val_out_padded, labels_val_out_padded = pad_generic_sequences(
-            inputs_val_out, labels_val_out, encoder=encoder
+        inputs_val_out_padded, labels_val_out_padded = pad_binary_sequences(
+            inputs_val_out, labels_val_out
         )
         dataset_val_out = TensorDataset(
             torch.as_tensor(inputs_val_out_padded),
@@ -366,9 +275,9 @@ def get_data(
             dataset_val_out, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
-        num_unique_tokens = encoder.get_num_unique_tokens()
-        op_token = encoder.op_token
-        eq_token = encoder.eq_token
+        num_unique_tokens = BINARY_TOKENS["<PAD>"] + 1
+        op_token = BINARY_OP_TOKEN
+        eq_token = BINARY_EQ_TOKEN
 
         return (
             train_loader,
@@ -377,7 +286,6 @@ def get_data(
             op_token,
             eq_token,
             num_unique_tokens,
-            encoder,
         )
 
     elif operation in ALL_OPERATIONS:
@@ -428,7 +336,6 @@ def get_data(
             op_token,
             eq_token,
             num_unique_tokens,
-            encoder,
         )
 
 
@@ -471,6 +378,7 @@ def select_out_of_domain_examples(
 def pad_sequence_to_length(
     padded, max_length, batch_first=True, padding_value=BINARY_TOKENS["<PAD>"]
 ):
+
     # If padded sequences are shorter than max_length, pad further
     if padded.shape[1] < max_length:
         pad_size = max_length - padded.shape[1]

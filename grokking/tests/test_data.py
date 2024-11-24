@@ -43,13 +43,16 @@ def test_train_val_mutually_exclusive(max_bit_length, training_fraction, curricu
     and ensures that no sample appears in both subsets.
     """
     # Generate binary addition data
-    train_loader, val_loader, _, op_token, eq_token, num_unique_tokens = get_data(
-        operation="x+y_binary",
-        max_bit_length_train=max_bit_length,
-        max_bit_length_val_out=max_bit_length + 1,
-        training_fraction=training_fraction,
-        batch_size=1024,  # Large batch size to collect all samples at once
-        curriculum=curriculum,  # Test different curriculum strategies
+    train_loader, val_loader, _, op_token, eq_token, num_unique_tokens, encoder = (
+        get_data(
+            operation="x+y",
+            task_type="sequence",
+            max_bit_length_train=max_bit_length,
+            max_bit_length_val_out=max_bit_length + 1,
+            training_fraction=training_fraction,
+            batch_size=1024,  # Large batch size to collect all samples at once
+            curriculum=curriculum,  # Test different curriculum strategies
+        )
     )
 
     # Collect all samples from training and validation datasets
@@ -178,15 +181,22 @@ def test_dataloader_operations(operation):
     )
 
     # Get dataloaders
-    train_loader, val_in_loader, val_out_loader, op_token, eq_token, num_tokens = (
-        get_data(
-            operation=operation,
-            max_bit_length_train=max_bit_length_train,
-            max_bit_length_val_out=max_bit_length_val_out,
-            batch_size=batch_size,
-            training_fraction=0.8,
-            curriculum="random",
-        )
+    (
+        train_loader,
+        val_in_loader,
+        val_out_loader,
+        op_token,
+        eq_token,
+        num_tokens,
+        encoder,
+    ) = get_data(
+        operation=operation,
+        task_type="classification",
+        max_bit_length_train=max_bit_length_train,
+        max_bit_length_val_out=max_bit_length_val_out,
+        batch_size=batch_size,
+        training_fraction=0.8,
+        curriculum="random",
     )
 
     # Check a batch from each loader

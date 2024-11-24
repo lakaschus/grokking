@@ -7,13 +7,11 @@ import wandb
 from torch import Tensor
 from typing import Dict, Any, Tuple, List
 import json
+from data_encoder import Encoder
 
 from data import get_data, BINARY_TOKENS
 from multitask_data import get_multitask_data
 from model import Transformer
-
-
-ID_TO_TOKEN = {v: k for k, v in BINARY_TOKENS.items()}
 
 
 def decode_sequence(sequence: Tensor, id_to_token: Dict[int, str]) -> str:
@@ -82,13 +80,16 @@ def main(args: Dict[str, Any]) -> None:
         op_token,
         eq_token,
         num_unique_tokens,
+        encoder,
     ) = generate_data(
         operation,
+        task_type=config.task_type,
         max_bit_length_train=config.max_bit_length_train,  # e.g., 6
         max_bit_length_val_out=config.max_bit_length_val_out,  # e.g., 7
         training_fraction=config.training_fraction,
         batch_size=config.batch_size,
         curriculum=config.curriculum,
+        base=config.base,
     )
 
     # Check that training data has no duplicates
@@ -122,12 +123,15 @@ def main(args: Dict[str, Any]) -> None:
 
     for epoch in tqdm(range(num_epochs), desc="Epochs"):
         # Training
-        train_metrics = train(model, train_loader, optimizer, scheduler, device, config)
+        train_metrics = train(
+            model, encoder, train_loader, optimizer, scheduler, device, config
+        )
 
         if current_epoch % 10 == 0:
             # In-Domain Validation
             val_in_metrics = evaluate(
                 model,
+                encoder,
                 val_in_loader,
                 device,
                 optimizer,
@@ -138,6 +142,7 @@ def main(args: Dict[str, Any]) -> None:
             # Out-of-Domain Validation
             val_out_metrics = evaluate(
                 model,
+                encoder,
                 val_out_loader,
                 device,
                 optimizer,
@@ -233,6 +238,7 @@ def track_grads(model: torch.nn.Module) -> Dict[str, float]:
 
 def train(
     model: Transformer,
+    encoder: Encoder,
     train_loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler.LRScheduler,
@@ -249,7 +255,9 @@ def train(
         if config.task_type == "classification":
             output, loss, acc = train_classification(model, inputs, labels, criterion)
         elif config.task_type == "sequence":
-            output, loss, acc = train_sequence(model, inputs, labels, criterion, config)
+            output, loss, acc = train_sequence(
+                model, encoder, inputs, labels, criterion, config
+            )
         else:
             raise ValueError(f"Unsupported task type: {config.task_type}")
 
@@ -297,13 +305,14 @@ def train_classification(
 
 def train_sequence(
     model: Transformer,
+    encoder: Encoder,
     inputs: Tensor,
     labels: Tensor,
     criterion: torch.nn.Module,
     config: Any,
 ) -> Tuple[Tensor, torch.Tensor, torch.Tensor]:
     output, target, eq_positions = get_logits(
-        model, inputs
+        model, encoder, inputs
     )  # [batch_size, seq_len -1, num_tokens]
     loss, acc, _ = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
@@ -311,8 +320,8 @@ def train_sequence(
     return output, loss, acc
 
 
-def get_eq_positions(inputs: Tensor) -> Tensor:
-    return (inputs == BINARY_TOKENS["="]).nonzero(as_tuple=True)[1] - 1
+def get_eq_positions(inputs: Tensor, encoder: Encoder) -> Tensor:
+    return (inputs == encoder.eq_token).nonzero(as_tuple=True)[1] - 1
 
 
 def compute_sequence_loss_and_accuracy(
@@ -374,6 +383,7 @@ def log_training_metrics(
 
 def evaluate(
     model: Transformer,
+    encoder: Encoder,
     val_loader: DataLoader,
     device: torch.device,
     optimizer: torch.optim.Optimizer,
@@ -398,14 +408,16 @@ def evaluate(
                 total_samples += num_samples
             elif config.task_type == "sequence":
                 loss, acc, num_samples, preds, trues, sequence_accuracy = (
-                    evaluate_sequence(model, inputs, labels, criterion, config)
+                    evaluate_sequence(model, encoder, inputs, labels, criterion, config)
                 )
                 total_loss += loss.item() * num_samples
                 total_correct += acc * num_samples
                 total_samples += num_samples
                 # Collect validation examples
             examples_table.extend(
-                collect_validation_examples(model, inputs, labels, config, preds, trues)
+                collect_validation_examples(
+                    model, encoder, inputs, labels, config, preds, trues
+                )
             )
 
     # Calculate average loss and accuracy
@@ -439,7 +451,7 @@ def get_evaluation_criterion(config: Any) -> torch.nn.Module:
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
-        # return torch.nn.CrossEntropyLoss(ignore_index=BINARY_TOKENS["<PAD>"])
+        # return torch.nn.CrossEntropyLoss(ignore_index=encoder.eq_token["<PAD>"])
         return torch.nn.CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported task type: {config.task_type}")
@@ -457,8 +469,8 @@ def evaluate_classification(
     return loss, correct, len(labels), preds, labels
 
 
-def get_logits(model: Transformer, inputs: Tensor) -> Tensor:
-    eq_positions = get_eq_positions(inputs)
+def get_logits(model: Transformer, encoder: Encoder, inputs: Tensor) -> Tensor:
+    eq_positions = get_eq_positions(inputs, encoder)
     decoder_input = inputs[:, :-1]
     target = inputs[:, 1:]
     output = model(decoder_input).transpose(0, 1)
@@ -467,12 +479,13 @@ def get_logits(model: Transformer, inputs: Tensor) -> Tensor:
 
 def evaluate_sequence(
     model: Transformer,
+    encoder: Encoder,
     inputs: Tensor,
     labels: Tensor,
     criterion: torch.nn.Module,
     config: Any,
 ) -> Tuple[float, float, int, List[str], List[str]]:
-    output, target, eq_positions = get_logits(model, inputs)
+    output, target, eq_positions = get_logits(model, encoder, inputs)
     loss, acc, mask = compute_sequence_loss_and_accuracy(
         output, target, eq_positions, criterion, config
     )
@@ -492,6 +505,7 @@ def evaluate_sequence(
 
 def collect_validation_examples(
     model,
+    encoder,
     inputs: Tensor,
     labels: Tensor,
     config: Any,
@@ -505,10 +519,10 @@ def collect_validation_examples(
         predicted_output = str(torch.argmax(model(inputs)[-1, :, :], dim=1)[0].item())
         true_output = str(labels[0].item())
     else:  # sequence
-        input_example = decode_sequence(inputs[0], ID_TO_TOKEN)
-        split_pos = (inputs[0] == BINARY_TOKENS["="]).nonzero()[0][0]
-        predicted_output = decode_sequence(preds[0][split_pos:], ID_TO_TOKEN)
-        true_output = decode_sequence(trues[0][split_pos:], ID_TO_TOKEN)
+        input_example = decode_sequence(inputs[0], encoder.id_to_token)
+        split_pos = (inputs[0] == encoder.eq_token).nonzero()[0][0]
+        predicted_output = decode_sequence(preds[0][split_pos:], encoder.id_to_token)
+        true_output = decode_sequence(trues[0][split_pos:], encoder.id_to_token)
     match = True if predicted_output == true_output else False
 
     examples.append(
