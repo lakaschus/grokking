@@ -16,6 +16,7 @@ class Encoder:
         self.max_number = max_number
         self.include_operations = include_operations
         self.token_dict = self._create_token_dict()
+
         self.pad_token = self.token_dict["<PAD>"]
         self.eos_token = self.token_dict["<EOS>"]
         self.op_token = self.token_dict.get("+", None)  # Example operation token
@@ -45,24 +46,14 @@ class Encoder:
             token_dict["<PAD>"] = current_index + 1
         return token_dict
 
-    def encode_number(self, number: int, flipped: bool = False) -> str:
-        """
-        Encode a number into its string representation in the specified base.
-
-        Args:
-            number (int): The number to encode.
-            flipped (bool): Whether to flip the digit order.
-
-        Returns:
-            str: The encoded number as a string.
-        """
+    def encode_number(self, number: int, flipped: bool = False) -> List[int]:
+        digits = []
         if number == 0:
-            digits = "0"
+            digits = [0]
         else:
-            digits = ""
             n = number
             while n > 0:
-                digits = str(n % self.base) + digits
+                digits.insert(0, n % self.base)
                 n = n // self.base
         if flipped:
             digits = digits[::-1]
@@ -71,41 +62,19 @@ class Encoder:
     def encode_sequence(
         self, a: int, b: int, operation: str = "+", flipped: bool = False
     ) -> List[int]:
-        """
-        Encode input sequences based on the specified base.
-
-        Args:
-            a (int): First operand.
-            b (int): Second operand.
-            operation (str): Operation symbol (e.g., "+").
-            flipped (bool): Whether to flip the digit order.
-
-        Returns:
-            List[int]: Encoded input sequence.
-        """
-        a_str = self.encode_number(a, flipped)
-        b_str = self.encode_number(b, flipped)
+        a_digits = self.encode_number(a, flipped)
+        b_digits = self.encode_number(b, flipped)
         sequence = (
-            [self.token_dict[char] for char in a_str]
+            [self.token_dict[str(digit)] for digit in a_digits]
             + [self.token_dict[operation]]
-            + [self.token_dict[char] for char in b_str]
+            + [self.token_dict[str(digit)] for digit in b_digits]
             + [self.token_dict["="]]
         )
         return sequence
 
     def encode_label_sequence(self, c: int, flipped: bool = False) -> List[int]:
-        """
-        Encode label sequences based on the specified base.
-
-        Args:
-            c (int): The result number.
-            flipped (bool): Whether to flip the digit order.
-
-        Returns:
-            List[int]: Encoded label sequence.
-        """
-        c_str = self.encode_number(c, flipped)
-        sequence = [self.token_dict[char] for char in c_str] + [
+        c_digits = self.encode_number(c, flipped)
+        sequence = [self.token_dict[str(digit)] for digit in c_digits] + [
             self.token_dict["<EOS>"]
         ]
         return sequence

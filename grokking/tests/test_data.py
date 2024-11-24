@@ -34,6 +34,135 @@ def collect_all_samples(data_loader):
 
 
 @pytest.mark.parametrize(
+    "base, a, b, c, flipped, expected_input, expected_label",
+    [
+        # Test Case 1: Base 2 (Binary)
+        (
+            2,  # base
+            1,  # a
+            1,  # b
+            2,  # c (should be [1, 0] in base 2)
+            False,  # flipped
+            [1, "+", 1, "=", 1, 0, "<EOS>"],  # expected_input
+            [1, 0, "<EOS>"],  # expected_label
+        ),
+        # Test Case 2: Base 10 (Decimal)
+        (
+            10,
+            12,
+            7,
+            19,
+            False,
+            [1, 2, "+", 7, "=", 1, 9, "<EOS>"],
+            [1, 9, "<EOS>"],
+        ),
+        # Test Case 3: Base 20
+        (
+            20,
+            22,  # In base 20: 1*20 + 2 = [1, 2]
+            3,  # [3]
+            25,  # In base 20: 1*20 + 5 = [1, 5]
+            False,
+            [1, 2, "+", 3, "=", 1, 5, "<EOS>"],
+            [1, 5, "<EOS>"],
+        ),
+        # Test Case 4: Base 5 with Flipped Digits
+        (
+            5,
+            3,  # [3]
+            2,  # [2]
+            0,  # [0]
+            True,  # flipped
+            [3, "+", 2, "=", 0, "<EOS>"],
+            [0, "<EOS>"],
+        ),
+        # Test Case 5: Base 16 (Hexadecimal-like, but using numeric digits)
+        (
+            16,
+            255,  # In base 16: 15*16 + 15 = [15, 15]
+            1,  # [1]
+            256,  # In base 16: 1*16^2 + 0*16 + 0 = [1, 0, 0]
+            False,
+            [15, 15, "+", 1, "=", 1, 0, 0, "<EOS>"],
+            [1, 0, 0, "<EOS>"],
+        ),
+    ],
+)
+def test_encoder_tokenization(
+    base: int,
+    a: int,
+    b: int,
+    c: int,
+    flipped: bool,
+    expected_input,
+    expected_label,
+):
+    """
+    Test the Encoder's tokenization for various bases, ensuring that numbers are
+    correctly converted into digit tokens, and that operation and special tokens
+    are properly included.
+
+    Args:
+        base (int): Numerical base for encoding.
+        a (int): First operand.
+        b (int): Second operand.
+        c (int): Result operand.
+        flipped (bool): Whether to flip the digit order.
+        expected_input (List): Expected list of tokens for the input sequence.
+        expected_label (List): Expected list of tokens for the label sequence.
+    """
+    # Initialize the Encoder with the specified base
+    encoder = Encoder(base=base)
+    token_dict = encoder.token_dict
+
+    # Encode the operation sequence: a + b =
+    operation_seq = encoder.encode_sequence(a, b, operation="+", flipped=flipped)
+    # Encode the label sequence: c <EOS>
+    answer_seq = encoder.encode_label_sequence(c, flipped=flipped)
+    # Concatenate operation and answer for the input sequence
+    input_seq = operation_seq + answer_seq
+    # Labels are the answer sequence only
+    label_seq = answer_seq
+
+    # Function to map expected symbols/digits to their corresponding token indices
+    def map_to_tokens(sequence):
+        token_sequence = []
+        for item in sequence:
+            if isinstance(item, int):
+                # Digit token: convert digit to string before mapping
+                token = token_dict.get(str(item))
+                if token is None:
+                    raise KeyError(
+                        f"Digit '{item}' not found in token_dict for base {base}."
+                    )
+            elif isinstance(item, str):
+                # Operation or special token: map directly
+                token = token_dict.get(item)
+                if token is None:
+                    raise KeyError(
+                        f"Token '{item}' not found in token_dict for base {base}."
+                    )
+            else:
+                raise ValueError(f"Unexpected item type in sequence: {item}")
+            token_sequence.append(token)
+        return token_sequence
+
+    # Map expected_input and expected_label to token indices
+    expected_input_tokens = map_to_tokens(expected_input)
+    expected_label_tokens = map_to_tokens(expected_label)
+
+    # Assertions to verify correctness
+    assert input_seq == expected_input_tokens, (
+        f"Input token sequence mismatch for base {base}.\n"
+        f"Expected: {expected_input_tokens}\nGot: {input_seq}"
+    )
+    assert label_seq == expected_label_tokens, (
+        f"Label token sequence mismatch for base {base}.\n"
+        f"Expected: {expected_label_tokens}\nGot: {label_seq}"
+    )
+
+
+@pytest.mark.parametrize(
     "base, max_number, expected_digits",
     [
         (10, 127, 3),  # decimal: 127 needs 3 digits
