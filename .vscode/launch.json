@@ -402,7 +402,7 @@
             ]
         },
         {
-            "name": "Grokking Division - Base 70",
+            "name": "Grokking Division - Base 140",
             "type": "debugpy",
             "request": "launch",
             "program": "grokking/cli.py",
@@ -417,7 +417,7 @@
                 "--training_fraction",
                 "0.5",
                 "--base",
-                "70",
+                "140",
                 "--max_bit_length_train",
                 "6",
                 "--max_bit_length_val_out",

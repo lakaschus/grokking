@@ -97,7 +97,7 @@ class Encoder:
         Returns:
             int: Maximum number of digits needed
         """
-        if self.max_number == 0:
+        if self.max_number == 0 or self.max_number < self.base:
             return 1
 
         # Count digits by repeatedly dividing by base

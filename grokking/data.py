@@ -319,9 +319,9 @@ def get_data(
 
         max_digits = encoder.theoretical_max_number_of_digits()
         max_input_length = (
-            2 * max_digits + (max_digits + 1) + 3
+            3 * max_digits + 3
         )  # two summands, result which can be have one more digit, plus token, eq token, eos token
-        max_label_length = (max_digits + 1) + 1
+        max_label_length = max_digits + 1
 
         inputs_train_val_padded = pad_sequence_to_length(
             inputs_train_val_padded, max_input_length, padding_value=encoder.pad_token
