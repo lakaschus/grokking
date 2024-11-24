@@ -11,6 +11,8 @@ from data import (
 import torch
 from torch.utils.data import TensorDataset
 
+from data_encoder import Encoder  # assuming this is how your Encoder class is imported
+
 
 def collect_all_samples(data_loader):
     """
@@ -29,6 +31,37 @@ def collect_all_samples(data_loader):
         for input_seq, label_seq in zip(inputs, labels):
             samples.add((tuple(input_seq.tolist()), tuple(label_seq.tolist())))
     return samples
+
+
+@pytest.mark.parametrize(
+    "base, max_number, expected_digits",
+    [
+        (10, 127, 3),  # decimal: 127 needs 3 digits
+        (2, 127, 7),  # binary: 1111111 needs 7 digits
+        (16, 127, 2),  # hex: 7F needs 2 digits
+        (8, 127, 3),  # octal: 177 needs 3 digits
+        (10, 1000, 4),  # decimal: 1000 needs 4 digits
+        (2, 1000, 10),  # binary: 1111101000 needs 10 digits
+    ],
+)
+def test_theoretical_max_number_of_digits(base, max_number, expected_digits):
+    """
+    Test that theoretical_max_number_of_digits correctly calculates the number of digits
+    needed to represent max_number in the given base.
+
+    Args:
+        base (int): The base of the number system
+        max_number (int): The number to calculate digits for
+        expected_digits (int): Expected number of digits
+    """
+    encoder = Encoder(base=base, max_number=max_number)
+    result = encoder.theoretical_max_number_of_digits()
+    assert result == expected_digits, (
+        f"For base {base} and number {max_number}, "
+        f"expected {expected_digits} digits but got {result}. "
+        f"In base {base}, {max_number} is "
+        f"{encoder.encode_number(max_number)}"
+    )
 
 
 @pytest.mark.parametrize(

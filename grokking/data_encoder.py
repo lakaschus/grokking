@@ -2,7 +2,9 @@ from typing import Dict, List
 
 
 class Encoder:
-    def __init__(self, base: int, include_operations: bool = True):
+    def __init__(
+        self, base: int, max_number: int = 97, include_operations: bool = True
+    ):
         """
         Initialize the encoder with a specific base.
 
@@ -11,6 +13,7 @@ class Encoder:
             include_operations (bool): Whether to include operation tokens.
         """
         self.base = base
+        self.max_number = max_number
         self.include_operations = include_operations
         self.token_dict = self._create_token_dict()
         self.pad_token = self.token_dict["<PAD>"]
@@ -115,3 +118,24 @@ class Encoder:
             int: Number of unique tokens.
         """
         return len(self.token_dict)
+
+    def theoretical_max_number_of_digits(self) -> int:
+        """
+        Calculate the maximum number of digits needed to represent self.max_number in the current base.
+
+        This implementation avoids floating-point precision issues by using integer division.
+
+        Returns:
+            int: Maximum number of digits needed
+        """
+        if self.max_number == 0:
+            return 1
+
+        # Count digits by repeatedly dividing by base
+        n = self.max_number
+        digits = 0
+        while n > 0:
+            digits += 1
+            n //= self.base
+
+        return digits

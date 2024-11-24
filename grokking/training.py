@@ -451,7 +451,7 @@ def get_evaluation_criterion(config: Any) -> torch.nn.Module:
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
-        # return torch.nn.CrossEntropyLoss(ignore_index=encoder.eq_token["<PAD>"])
+        # return torch.nn.CrossEntropyLoss(ignore_index=encoder.pad_token["<PAD>"])
         return torch.nn.CrossEntropyLoss()
     else:
         raise ValueError(f"Unsupported task type: {config.task_type}")

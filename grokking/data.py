@@ -295,7 +295,7 @@ def get_data(
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader, int, int, int]: DataLoaders and token info.
     """
-    encoder = Encoder(base=base)
+    encoder = Encoder(base=base, max_number=get_next_prime(2**max_bit_length_val_out))
     if task_type == "sequence":
         flipped = "flipped" in operation
         if "x+y" in operation:
@@ -317,10 +317,11 @@ def get_data(
             inputs_train_val, labels_train_val, encoder=encoder
         )
 
+        max_digits = encoder.theoretical_max_number_of_digits()
         max_input_length = (
-            2 * max_bit_length_val_out + (max_bit_length_val_out + 1) + 3
+            2 * max_digits + (max_digits + 1) + 3
         )  # two summands, result which can be have one more digit, plus token, eq token, eos token
-        max_label_length = (max_bit_length_val_out + 1) + 1
+        max_label_length = (max_digits + 1) + 1
 
         inputs_train_val_padded = pad_sequence_to_length(
             inputs_train_val_padded, max_input_length, padding_value=encoder.pad_token
