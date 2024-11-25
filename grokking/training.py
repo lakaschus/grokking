@@ -15,7 +15,7 @@ from model import Transformer
 
 
 def decode_sequence(sequence: Tensor, id_to_token: Dict[int, str]) -> str:
-    return "".join([id_to_token.get(token_id, "?") for token_id in sequence.tolist()])
+    return " ".join([id_to_token.get(token_id, "?") for token_id in sequence.tolist()])
 
 
 def export_dataloader_data(dataloader: DataLoader, filename: str) -> None:
@@ -246,7 +246,7 @@ def train(
     config: Any,
 ) -> Dict[str, float]:
     model.train()
-    criterion = get_criterion(config)
+    criterion = get_criterion(config, encoder)
 
     for batch in train_loader:
         inputs, labels = [tensor.to(device) for tensor in batch]
@@ -286,9 +286,9 @@ def train(
     return {"accuracy": acc.item(), "loss": loss.item()}
 
 
-def get_criterion(config: Any) -> torch.nn.Module:
+def get_criterion(config: Any, encoder: Encoder) -> torch.nn.Module:
     if config.task_type == "sequence":
-        return torch.nn.CrossEntropyLoss()
+        return torch.nn.CrossEntropyLoss(ignore_index=encoder.pad_token)
     else:
         return torch.nn.CrossEntropyLoss()
 
@@ -315,7 +315,7 @@ def train_sequence(
         model, encoder, inputs
     )  # [batch_size, seq_len -1, num_tokens]
     loss, acc, _ = compute_sequence_loss_and_accuracy(
-        output, target, eq_positions, criterion, config
+        output, target, eq_positions, criterion, config, encoder
     )
     return output, loss, acc
 
@@ -330,11 +330,14 @@ def compute_sequence_loss_and_accuracy(
     eq_positions: Tensor,
     criterion: torch.nn.Module,
     config: Any,
+    encoder: Encoder,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     batch_size, seq_len, num_tokens = output.size()
-    mask = create_mask_from_positions(seq_len, batch_size, eq_positions, output.device)
-    masked_output = mask_tensor(output, mask)
-    masked_target = mask_tensor(target, mask)
+    mask = create_mask_from_positions(
+        encoder, seq_len, batch_size, eq_positions, output.device, target
+    )
+    masked_output = output[mask]
+    masked_target = target[mask]
 
     loss = criterion(masked_output, masked_target)
     # loss = criterion(output.transpose(1, 2), target)
@@ -354,20 +357,43 @@ def generate_flat_tensors(inputs: Tensor) -> Tuple[Tensor, Tensor]:
     return flat_inputs
 
 
-def create_mask_from_positions(seq_len, batch_size, positions, device) -> Tensor:
-    mask = torch.arange(seq_len, device=device).unsqueeze(0).expand(
+def create_mask_from_positions(
+    encoder: Encoder,
+    seq_len: int,
+    batch_size: int,
+    positions: Tensor,
+    device: torch.device,
+    target: Tensor,
+) -> Tensor:
+    """
+    Creates a mask that combines position-based masking (after equals sign) with padding masking.
+
+    Args:
+        seq_len: Length of the sequence
+        batch_size: Size of the batch
+        positions: Tensor containing positions of equals signs
+        device: Device to create mask on
+        target: Target tensor to check for padding tokens
+
+    Returns:
+        Tensor: Boolean mask where True indicates positions to include in loss/accuracy
+    """
+    # Create position-based mask (True for positions after equals sign)
+    position_mask = torch.arange(seq_len, device=device).unsqueeze(0).expand(
         batch_size, seq_len
     ) > positions.unsqueeze(1)
-    return mask
 
+    # Create padding mask (True for non-padding tokens)
+    padding_mask = target != encoder.pad_token
 
-def mask_tensor(tensor: Tensor, mask: Tensor) -> Tensor:
-    return tensor[mask]
+    # Combine both masks - we only care about non-padding tokens after equals sign
+    return position_mask & padding_mask
 
 
 def log_training_metrics(
     step: int, acc: torch.Tensor, loss: torch.Tensor, lr, gradient_norms={}
 ) -> None:
+
     metrics = {
         "training/accuracy": acc.item(),
         "training/loss": loss.item(),
@@ -391,7 +417,7 @@ def evaluate(
     validation_type: str,  # 'in_domain' or 'out_of_domain'
 ) -> Dict[str, float]:
     model.eval()
-    criterion = get_evaluation_criterion(config)
+    criterion = get_evaluation_criterion(config, encoder)
 
     total_loss, total_correct, total_samples = 0.0, 0.0, 0
     examples_table = []
@@ -447,12 +473,11 @@ def evaluate(
     return {"accuracy": accuracy, "loss": avg_loss}
 
 
-def get_evaluation_criterion(config: Any) -> torch.nn.Module:
+def get_evaluation_criterion(config: Any, encoder: Encoder) -> torch.nn.Module:
     if config.task_type == "classification":
         return torch.nn.CrossEntropyLoss()
     elif config.task_type == "sequence":
-        # return torch.nn.CrossEntropyLoss(ignore_index=encoder.pad_token["<PAD>"])
-        return torch.nn.CrossEntropyLoss()
+        return torch.nn.CrossEntropyLoss(ignore_index=encoder.pad_token)
     else:
         raise ValueError(f"Unsupported task type: {config.task_type}")
 
@@ -487,7 +512,7 @@ def evaluate_sequence(
 ) -> Tuple[float, float, int, List[str], List[str]]:
     output, target, eq_positions = get_logits(model, encoder, inputs)
     loss, acc, mask = compute_sequence_loss_and_accuracy(
-        output, target, eq_positions, criterion, config
+        output, target, eq_positions, criterion, config, encoder
     )
 
     # Get predicted tokens by taking the argmax
@@ -520,9 +545,20 @@ def collect_validation_examples(
         true_output = str(labels[0].item())
     else:  # sequence
         input_example = decode_sequence(inputs[0], encoder.id_to_token)
+        # Find equals token position
         split_pos = (inputs[0] == encoder.eq_token).nonzero()[0][0]
-        predicted_output = decode_sequence(preds[0][split_pos:], encoder.id_to_token)
-        true_output = decode_sequence(trues[0][split_pos:], encoder.id_to_token)
+
+        # Get predictions and truth after equals, excluding padding
+        pred_seq = preds[0, split_pos:]
+        true_seq = trues[0, split_pos:]
+
+        # Create mask for non-padding tokens
+        valid_mask = true_seq != encoder.pad_token
+
+        # Convert only non-padding tokens to strings
+        predicted_output = decode_sequence(pred_seq[valid_mask], encoder.id_to_token)
+        true_output = decode_sequence(true_seq[valid_mask], encoder.id_to_token)
+
     match = True if predicted_output == true_output else False
 
     examples.append(
