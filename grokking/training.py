@@ -90,6 +90,7 @@ def main(args: Dict[str, Any]) -> None:
         batch_size=config.batch_size,
         curriculum=config.curriculum,
         base=config.base,
+        fixed_sequence_length=config.fixed_sequence_length,
     )
 
     # Check that training data has no duplicates

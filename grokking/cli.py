@@ -7,6 +7,7 @@ if __name__ == "__main__":
     parser.add_argument("--operation", type=str, default="x/y")
     parser.add_argument("--multitask", action="store_true", default=False)
     parser.add_argument("--continue_training", action="store_true", default=False)
+    parser.add_argument("--fixed_sequence_length", action="store_true", default=False)
     parser.add_argument("--curriculum", type=str, default="random")
     parser.add_argument("--task_type", type=str, default="classification")
     parser.add_argument("--training_fraction", type=float, default=0.5)

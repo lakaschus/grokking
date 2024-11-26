@@ -86,6 +86,7 @@ def get_multitask_data(
     batch_size: int = 32,
     curriculum: str = "random",
     base: int = 2,
+    fixed_sequence_length: bool = False,
 ) -> Tuple[DataLoader, DataLoader, DataLoader, Dict[str, int], int, int]:
     """
     Convenience function to generate multitask datasets.

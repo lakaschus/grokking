@@ -46,7 +46,21 @@ class Encoder:
             token_dict["<PAD>"] = current_index + 1
         return token_dict
 
-    def encode_number(self, number: int, flipped: bool = False) -> List[int]:
+    def encode_number(
+        self, number: int, flipped: bool = False, fixed_sequence_length: bool = False
+    ) -> List[int]:
+        """
+        Encode a number into its digit representation based on the base.
+        Optionally pad with leading zeros to a fixed length.
+
+        Args:
+            number (int): The number to encode.
+            flipped (bool): Whether to flip the digit order.
+            fixed_length (Optional[int]): Fixed length to pad the digits.
+
+        Returns:
+            List[int]: List of encoded digits.
+        """
         digits = []
         if number == 0:
             digits = [0]
@@ -57,13 +71,26 @@ class Encoder:
                 n = n // self.base
         if flipped:
             digits = digits[::-1]
+        if fixed_sequence_length:
+            length = self.theoretical_max_number_of_digits()
+            if len(digits) < length:
+                # Pad with leading zeros
+                digits = [0] * (length - len(digits)) + digits
+            elif len(digits) > length:
+                # Truncate the digits if they exceed length
+                digits = digits[-length:]
         return digits
 
     def encode_sequence(
-        self, a: int, b: int, operation: str = "+", flipped: bool = False
+        self,
+        a: int,
+        b: int,
+        operation: str = "+",
+        flipped: bool = False,
+        fixed_sequence_length: bool = False,
     ) -> List[int]:
-        a_digits = self.encode_number(a, flipped)
-        b_digits = self.encode_number(b, flipped)
+        a_digits = self.encode_number(a, flipped, fixed_sequence_length)
+        b_digits = self.encode_number(b, flipped, fixed_sequence_length)
         sequence = (
             [self.token_dict[str(digit)] for digit in a_digits]
             + [self.token_dict[operation]]
@@ -72,11 +99,14 @@ class Encoder:
         )
         return sequence
 
-    def encode_label_sequence(self, c: int, flipped: bool = False) -> List[int]:
-        c_digits = self.encode_number(c, flipped)
-        sequence = [self.token_dict[str(digit)] for digit in c_digits] + [
-            self.token_dict["<EOS>"]
-        ]
+    def encode_label_sequence(
+        self, c: int, flipped: bool = False, fixed_sequence_length: bool = False
+    ) -> List[int]:
+        c_digits = self.encode_number(c, flipped, fixed_sequence_length)
+
+        sequence = [self.token_dict[str(digit)] for digit in c_digits]
+        if not fixed_sequence_length:
+            sequence = sequence + [self.token_dict["<EOS>"]]
         return sequence
 
     def get_num_unique_tokens(self) -> int:

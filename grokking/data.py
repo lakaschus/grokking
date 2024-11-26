@@ -126,17 +126,28 @@ def create_input_sequences(
 
 
 def encode_generic_sequences(
-    x: Tensor, y: Tensor, result: Tensor, encoder: Encoder, flipped: bool = False
+    x: Tensor,
+    y: Tensor,
+    result: Tensor,
+    encoder: Encoder,
+    flipped: bool = False,
+    fixed_sequence_length: bool = False,
 ) -> Tuple[List[List[int]], List[int]]:
     inputs = []
     labels = []
     for a, b, c in zip(x, y, result):
         # Encode the operation sequence: a + b = c
         operation_seq = encoder.encode_sequence(
-            a.item(), b.item(), operation="+", flipped=flipped
+            a.item(),
+            b.item(),
+            operation="+",
+            flipped=flipped,
+            fixed_sequence_length=fixed_sequence_length,
         )
         # Append the encoded answer to the input sequence
-        answer_seq = encoder.encode_label_sequence(c.item(), flipped=flipped)
+        answer_seq = encoder.encode_label_sequence(
+            c.item(), flipped=flipped, fixed_sequence_length=fixed_sequence_length
+        )
         input_seq = operation_seq + answer_seq
         # Labels are the answer sequence only
         label_seq = answer_seq
@@ -151,11 +162,17 @@ def binary_addition_data(
     max_bit_length: int = 6,
     flipped: bool = False,
     encoder: Encoder = BINARY_ENCODER,
+    fixed_sequence_length: bool = False,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length)
     sum_xy = x + y
     inputs, labels = encode_generic_sequences(
-        x, y, sum_xy, encoder=encoder, flipped=flipped
+        x,
+        y,
+        sum_xy,
+        encoder=encoder,
+        flipped=flipped,
+        fixed_sequence_length=fixed_sequence_length,
     )
     return inputs, labels, encoder.op_token, encoder.eq_token
 
@@ -166,13 +183,19 @@ def binary_divison_data(
     max_bit_length: int = 6,
     flipped: bool = False,
     encoder: Encoder = BINARY_ENCODER,
+    fixed_sequence_length: bool = False,
 ) -> Tuple[List[List[int]], List[List[int]], int, int]:
     x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
     p = get_next_prime(2**max_bit_length)
     xx = (x * y) % p
     z = x
     inputs, labels = encode_generic_sequences(
-        xx, y, z, encoder=encoder, flipped=flipped
+        xx,
+        y,
+        z,
+        encoder=encoder,
+        flipped=flipped,
+        fixed_sequence_length=fixed_sequence_length,
     )
     return inputs, labels, encoder.op_token, encoder.eq_token
 
@@ -278,6 +301,7 @@ def get_data(
     batch_size: int = 32,
     curriculum: str = "random",
     increment_eq_token: int = 0,
+    fixed_sequence_length: bool = False,  # New parameter
 ) -> Tuple[DataLoader, DataLoader, DataLoader, int, int, int]:
     """
     Generate DataLoaders for training, in-domain validation, and out-of-domain validation.
@@ -312,6 +336,7 @@ def get_data(
             max_bit_length=max_bit_length_train,
             flipped=flipped,
             encoder=encoder,
+            fixed_sequence_length=fixed_sequence_length,
         )
         inputs_train_val_padded, labels_train_val_padded = pad_generic_sequences(
             inputs_train_val, labels_train_val, encoder=encoder
@@ -321,7 +346,7 @@ def get_data(
         max_input_length = (
             3 * max_digits + 3
         )  # two summands, result which can be have one more digit, plus token, eq token, eos token
-        max_label_length = max_digits + 1
+        max_label_length = max_digits  # + 1
 
         inputs_train_val_padded = pad_sequence_to_length(
             inputs_train_val_padded, max_input_length, padding_value=encoder.pad_token
@@ -347,6 +372,7 @@ def get_data(
             max_bit_length=max_bit_length_val_out,
             flipped=flipped,
             encoder=encoder,
+            fixed_sequence_length=fixed_sequence_length,
         )
         inputs_val_out_padded, labels_val_out_padded = pad_generic_sequences(
             inputs_val_out, labels_val_out, encoder=encoder
