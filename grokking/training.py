@@ -322,7 +322,8 @@ def train_sequence(
 
 
 def get_eq_positions(inputs: Tensor, encoder: Encoder) -> Tensor:
-    return (inputs == encoder.eq_token).nonzero(as_tuple=True)[1] - 1
+    eq_tokens = torch.tensor(encoder.list_of_eq_tokens, device=inputs.device)
+    return torch.isin(inputs, eq_tokens).nonzero(as_tuple=True)[1]
 
 
 def compute_sequence_loss_and_accuracy(
@@ -547,7 +548,8 @@ def collect_validation_examples(
     else:  # sequence
         input_example = decode_sequence(inputs[0], encoder.id_to_token)
         # Find equals token position
-        split_pos = (inputs[0] == encoder.eq_token).nonzero()[0][0]
+        eq_tokens = torch.tensor(encoder.list_of_eq_tokens, device=inputs.device)
+        split_pos = torch.isin(inputs, eq_tokens).nonzero(as_tuple=True)[1][0].item()
 
         # Get predictions and truth after equals, excluding padding
         pred_seq = preds[0, split_pos:]

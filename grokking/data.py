@@ -181,50 +181,6 @@ def encode_generic_sequences(
     return inputs, labels
 
 
-def binary_addition_data(
-    out_domain: bool = False,
-    min_bit_length: int = 1,
-    max_bit_length: int = 6,
-    flipped: bool = False,
-    encoder: Encoder = BINARY_ENCODER,
-    fixed_sequence_length: bool = False,
-) -> Tuple[List[List[int]], List[List[int]], int, int]:
-    x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length)
-    sum_xy = x + y
-    inputs, labels = encode_generic_sequences(
-        x,
-        y,
-        sum_xy,
-        encoder=encoder,
-        flipped=flipped,
-        fixed_sequence_length=fixed_sequence_length,
-    )
-    return inputs, labels, encoder.op_token, encoder.eq_token
-
-
-def binary_divison_data(
-    out_domain: bool = False,
-    min_bit_length: int = 1,
-    max_bit_length: int = 6,
-    flipped: bool = False,
-    encoder: Encoder = BINARY_ENCODER,
-    fixed_sequence_length: bool = False,
-) -> Tuple[List[List[int]], List[List[int]], int, int]:
-    x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
-    p = get_next_prime(2**max_bit_length)
-    xx = (x * y) % p
-    z = x
-    inputs, labels = encode_generic_sequences(
-        xx,
-        y,
-        z,
-        encoder=encoder,
-        flipped=flipped,
-        fixed_sequence_length=fixed_sequence_length,
-    )
-    return inputs, labels, encoder.op_token, encoder.eq_token
-
-
 def generate_binary_operands(
     out_domain: bool,
     min_bit_length: int = 1,
@@ -349,6 +305,8 @@ def get_data(
         encoder = Encoder(
             base=base, max_number=get_next_prime(2**max_bit_length_val_out)
         )
+        if increment_eq_token != 0:
+            encoder.increment_eq_token(increment_eq_token)
         flipped = "flipped" in operation
 
         # Generate training and in-domain validation data
@@ -432,7 +390,12 @@ def get_data(
         )
 
     elif operation in ALL_OPERATIONS:
-        encoder = Encoder(base=base, max_number=get_next_prime(max_bit_length_val_out))
+        encoder = Encoder(
+            base=get_next_prime(max_bit_length_val_out),
+            max_number=get_next_prime(max_bit_length_val_out),
+        )
+        if increment_eq_token != 0:
+            encoder.increment_eq_token(increment_eq_token)
         # Generate out-of-domain validation data with larger modulo
         p_out = max_bit_length_val_out
         # TODO: Val Out not working for multitask because id of op and eq token change compared to train and val in set

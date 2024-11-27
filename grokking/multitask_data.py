@@ -5,9 +5,18 @@ import torch
 
 
 class MultitaskDataGenerator:
-    def __init__(self, tasks: List[str]):
+    def __init__(
+        self,
+        tasks: List[str],
+        task_type: str = "classification",
+        base: int = 2,
+        fixed_sequence_length: bool = False,
+    ):
         self.tasks = tasks
         self.task_to_eq_token = {}
+        self.task_type = task_type
+        self.base = base
+        self.fixed_sequence_length = fixed_sequence_length
 
     def generate_multitask_data(
         self,
@@ -31,15 +40,18 @@ class MultitaskDataGenerator:
                 op_token,
                 eq_token,
                 num_unique_tokens,
+                encoder,
             ) = get_data(
                 operation=task,
-                task_type="classification",  # To be generalized
+                task_type=self.task_type,
                 max_bit_length_train=max_bit_length_train,
                 max_bit_length_val_out=max_bit_length_val_out,
                 training_fraction=training_fraction,
-                batch_size=batch_size,  # Get full dataset
+                batch_size=batch_size,
                 curriculum=curriculum,
                 increment_eq_token=i,
+                base=self.base,
+                fixed_sequence_length=self.fixed_sequence_length,
             )
 
             # Store the operation token for this task
@@ -66,7 +78,10 @@ class MultitaskDataGenerator:
             combined_val_out, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
-        num_unique_tokens = max_bit_length_train + 1 + len(self.tasks)
+        num_unique_tokens = encoder.eq_token + 1
+
+        # TODO: Add list of eq tokens to encoder !
+        encoder.list_of_eq_tokens = [self.task_to_eq_token[task] for task in self.tasks]
 
         return (
             train_loader,
@@ -75,6 +90,7 @@ class MultitaskDataGenerator:
             op_token,
             eq_token,
             num_unique_tokens,
+            encoder,
         )
 
 
@@ -87,6 +103,7 @@ def get_multitask_data(
     curriculum: str = "random",
     base: int = 2,
     fixed_sequence_length: bool = False,
+    task_type: str = "classification",
 ) -> Tuple[DataLoader, DataLoader, DataLoader, Dict[str, int], int, int]:
     """
     Convenience function to generate multitask datasets.
@@ -101,7 +118,12 @@ def get_multitask_data(
             )
         )
     """
-    generator = MultitaskDataGenerator(tasks)
+    generator = MultitaskDataGenerator(
+        tasks,
+        task_type=task_type,
+        base=base,
+        fixed_sequence_length=fixed_sequence_length,
+    )
     return generator.generate_multitask_data(
         max_bit_length_train=max_bit_length_train,
         max_bit_length_val_out=max_bit_length_val_out,

@@ -2,9 +2,7 @@ from typing import Dict, List
 
 
 class Encoder:
-    def __init__(
-        self, base: int, max_number: int = 97, include_operations: bool = True
-    ):
+    def __init__(self, base: int, max_number: int = 97):
         """
         Initialize the encoder with a specific base.
 
@@ -14,13 +12,19 @@ class Encoder:
         """
         self.base = base
         self.max_number = max_number
-        self.include_operations = include_operations
         self.token_dict = self._create_token_dict()
 
         self.pad_token = self.token_dict["<PAD>"]
         self.eos_token = self.token_dict["<EOS>"]
         self.op_token = self.token_dict.get("+", None)  # Example operation token
         self.eq_token = self.token_dict.get("=", None)  # Example equal token
+        self.list_of_eq_tokens = [self.eq_token]
+        self.id_to_token = {v: k for k, v in self.token_dict.items()}
+
+    def increment_eq_token(self, increment):
+        self.eq_token += increment
+        # Update the token dictionary
+        self.token_dict.update({"=": self.eq_token})
         self.id_to_token = {v: k for k, v in self.token_dict.items()}
 
     def _create_token_dict(self) -> Dict[str, int]:
@@ -35,15 +39,12 @@ class Encoder:
         for digit in range(self.base):
             token_dict[str(digit)] = digit
         current_index = self.base
-        # Add operation tokens if needed
-        if self.include_operations:
-            operations = ["+", "=", "<EOS>", "<PAD>"]
-            for op in operations:
-                token_dict[op] = current_index
-                current_index += 1
-        else:
-            token_dict["<EOS>"] = current_index
-            token_dict["<PAD>"] = current_index + 1
+        operations = ["+", "<EOS>", "<PAD>"]
+        for op in operations:
+            token_dict[op] = current_index
+            current_index += 1
+        # Make sure that equal sign token is last
+        token_dict["="] = current_index
         return token_dict
 
     def encode_number(
