@@ -92,6 +92,31 @@ def get_next_prime(n):
         current += 2  # Only check odd numbers
 
 
+def sequence_task_data(
+    operation: str,
+    out_domain: bool = False,
+    min_bit_length: int = 1,
+    max_bit_length: int = 6,
+    flipped: bool = False,
+    encoder: Encoder = BINARY_ENCODER,
+    fixed_sequence_length: bool = False,
+    increment_eq_token: int = 0,
+    increment_op_token: int = 0,
+) -> Tuple[List[List[int]], List[List[int]], int, int]:
+    x, y = generate_binary_operands(out_domain, min_bit_length, max_bit_length, y_min=1)
+    p = get_next_prime(2**max_bit_length)
+    x, y, z = ALL_OPERATIONS[operation](x, y, p)
+    inputs, labels = encode_generic_sequences(
+        x,
+        y,
+        z,
+        encoder=encoder,
+        flipped=flipped,
+        fixed_sequence_length=fixed_sequence_length,
+    )
+    return inputs, labels, encoder.op_token, encoder.eq_token
+
+
 def operation_mod_p_data(
     operation: str, p: int, increment_eq_token: int = 0, increment_op_token: int = 0
 ) -> Tuple[Tensor, Tensor, int, int]:
@@ -319,18 +344,16 @@ def get_data(
     Returns:
         Tuple[DataLoader, DataLoader, DataLoader, int, int, int]: DataLoaders and token info.
     """
-    encoder = Encoder(base=base, max_number=get_next_prime(2**max_bit_length_val_out))
+
     if task_type == "sequence":
+        encoder = Encoder(
+            base=base, max_number=get_next_prime(2**max_bit_length_val_out)
+        )
         flipped = "flipped" in operation
-        if "x+y" in operation:
-            task_method = binary_addition_data
-        elif "x/y" in operation:
-            task_method = binary_divison_data
-        else:
-            raise ValueError(f"Unsupported binary operation: {operation}")
 
         # Generate training and in-domain validation data
-        inputs_train_val, labels_train_val, _, _ = task_method(
+        inputs_train_val, labels_train_val, _, _ = sequence_task_data(
+            operation=operation,
             out_domain=False,
             min_bit_length=1,
             max_bit_length=max_bit_length_train,
@@ -366,7 +389,8 @@ def get_data(
         )
 
         # Generate out-of-domain validation data
-        inputs_val_out, labels_val_out, _, _ = task_method(
+        inputs_val_out, labels_val_out, _, _ = sequence_task_data(
+            operation=operation,
             out_domain=True,
             min_bit_length=max_bit_length_train,
             max_bit_length=max_bit_length_val_out,
@@ -408,6 +432,7 @@ def get_data(
         )
 
     elif operation in ALL_OPERATIONS:
+        encoder = Encoder(base=base, max_number=get_next_prime(max_bit_length_val_out))
         # Generate out-of-domain validation data with larger modulo
         p_out = max_bit_length_val_out
         # TODO: Val Out not working for multitask because id of op and eq token change compared to train and val in set
