@@ -123,7 +123,7 @@ def operation_mod_p_data(
     x, y = generate_cartesian_product(operation, p)
     p = get_next_prime(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
-    op_token, eq_token = define_tokens(labels)
+    op_token, eq_token = define_tokens(p)
     eq_token += increment_eq_token
     op_token += increment_op_token
     inputs = create_input_sequences(x, y, op_token, eq_token)
@@ -136,8 +136,8 @@ def generate_cartesian_product(operation: str, p: int) -> Tuple[Tensor, Tensor]:
     return torch.cartesian_prod(x, y).T
 
 
-def define_tokens(labels: Tensor) -> Tuple[int, int]:
-    op_token = torch.max(labels).item() + 1
+def define_tokens(p: int) -> Tuple[int, int]:
+    op_token = p + 1
     eq_token = op_token + 1
     return op_token, eq_token
 
@@ -398,16 +398,17 @@ def get_data(
             encoder.increment_eq_token(increment_eq_token)
         # Generate out-of-domain validation data with larger modulo
         p_out = max_bit_length_val_out
-        # TODO: Val Out not working for multitask because id of op and eq token change compared to train and val in set
+        # TODO: Val Out not working for multitask because id of op and eq token changed compared to train and val in set
         inputs_out, labels_out, _, _ = operation_mod_p_data(
             operation, p_out, increment_eq_token
         )
 
         # Generate training and validation data for modulo operations
         p_diff = max_bit_length_val_out - max_bit_length_train
-        p = max_bit_length_train
         inputs, labels, op_token, eq_token = operation_mod_p_data(
-            operation, p, increment_eq_token + p_diff, p_diff
+            operation,
+            p_out,
+            increment_eq_token + p_diff,
         )
 
         # Create dataset
@@ -434,7 +435,7 @@ def get_data(
             val_out_dataset, batch_size=batch_size, shuffle=(curriculum == "random")
         )
 
-        num_unique_tokens = max_bit_length_val_out + 2
+        num_unique_tokens = eq_token + 1
 
         return (
             train_loader,

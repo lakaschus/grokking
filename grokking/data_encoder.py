@@ -19,6 +19,7 @@ class Encoder:
         self.op_token = self.token_dict.get("+", None)  # Example operation token
         self.eq_token = self.token_dict.get("=", None)  # Example equal token
         self.list_of_eq_tokens = [self.eq_token]
+        self.task_to_eq_token = {}
         self.id_to_token = {v: k for k, v in self.token_dict.items()}
 
     def increment_eq_token(self, increment):

@@ -82,6 +82,7 @@ class MultitaskDataGenerator:
 
         # TODO: Add list of eq tokens to encoder !
         encoder.list_of_eq_tokens = [self.task_to_eq_token[task] for task in self.tasks]
+        encoder.task_to_eq_token = self.task_to_eq_token
 
         return (
             train_loader,

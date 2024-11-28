@@ -8,6 +8,8 @@ from torch import Tensor
 from typing import Dict, Any, Tuple, List
 import json
 from data_encoder import Encoder
+from collections import defaultdict
+
 
 from data import get_data, BINARY_TOKENS
 from multitask_data import get_multitask_data
@@ -56,9 +58,6 @@ def clear_logs() -> None:
         f.write("")
     with open("logs/validation_examples_out_of_domain.json", "w") as f:
         f.write("")
-
-
-# training.py
 
 
 def main(args: Dict[str, Any]) -> None:
@@ -424,6 +423,11 @@ def evaluate(
     total_loss, total_correct, total_samples = 0.0, 0.0, 0
     examples_table = []
 
+    if config.multitask:
+        eq_token_to_task = {v: k for k, v in encoder.task_to_eq_token.items()}
+        per_task_correct = defaultdict(int)
+        per_task_total = defaultdict(int)
+
     with torch.no_grad():
         for batch in val_loader:
             inputs, labels = [tensor.to(device) for tensor in batch]
@@ -441,7 +445,21 @@ def evaluate(
                 total_loss += loss.item() * num_samples
                 total_correct += acc * num_samples
                 total_samples += num_samples
-                # Collect validation examples
+
+            if config.multitask and wandb.run.step % 50 == 0:
+                # Determine the task for each sample in the batch
+                eq_tokens = get_eq_tokens_from_inputs(inputs, encoder)
+                for eq_token, pred, true in zip(eq_tokens, preds, trues):
+                    task = eq_token_to_task.get(eq_token.item(), "Unknown")
+                    per_task_total[task] += 1
+                    if config.task_type == "classification":
+                        if pred.item() == true.item():
+                            per_task_correct[task] += 1
+                    elif config.task_type == "sequence":
+                        # For sequence tasks, 'acc' represents accuracy per sample
+                        if sequence_accuracy >= 1.0:
+                            per_task_correct[task] += 1
+
             examples_table.extend(
                 collect_validation_examples(
                     model, encoder, inputs, labels, config, preds, trues
@@ -451,6 +469,19 @@ def evaluate(
     # Calculate average loss and accuracy
     avg_loss = total_loss / len(val_loader.dataset)
     accuracy = total_correct / total_samples
+
+    if config.multitask and wandb.run.step % 50 == 0:
+        # Calculate and log per-task accuracies
+        for task, correct in per_task_correct.items():
+            total = per_task_total[task]
+            task_accuracy = correct / total if total > 0 else 0.0
+            wandb.log(
+                {
+                    f"validation_{validation_type}/accuracy_{task}": task_accuracy,
+                    "Optimization Steps": optimizer.training_steps,
+                },
+                commit=False,
+            )
 
     if wandb.run.step % 50 == 0:
         with open(f"logs/validation_examples_{validation_type}.json", "a") as f:
@@ -473,6 +504,39 @@ def evaluate(
     wandb.log(metrics, commit=next_step)
 
     return {"accuracy": accuracy, "loss": avg_loss}
+
+
+def get_eq_tokens_from_inputs(inputs: Tensor, encoder: Encoder) -> Tensor:
+    """
+    Extracts the eq_token from each input sequence in a vectorized manner.
+
+    Args:
+        inputs (Tensor): Input tensor of shape [batch_size, seq_len].
+        encoder (Encoder): Encoder instance containing task mappings.
+
+    Returns:
+        Tensor: Tensor of eq_token ids for each sample in the batch.
+    """
+    eq_token_ids = torch.tensor(
+        list(encoder.task_to_eq_token.values()), device=inputs.device
+    )
+    # Create a mask of shape [batch_size, seq_len, num_tasks]
+    mask = inputs.unsqueeze(2) == eq_token_ids.unsqueeze(0).unsqueeze(0)
+    # Any position matching any eq_token
+    mask_any = mask.any(dim=2)  # Shape: [batch_size, seq_len]
+
+    # Find the first occurrence of any eq_token per sample
+    # Set positions without eq_tokens to seq_len (out of bounds)
+    first_eq_positions = torch.argmax(mask_any.long(), dim=1)
+    # Check if any eq_token exists in the sample
+    has_eq_token = mask_any.any(dim=1)
+
+    # Gather the eq_token ids using the first_eq_positions
+    eq_tokens = inputs[torch.arange(inputs.size(0)), first_eq_positions]
+    # For samples without any eq_token, set to -1 or a default value
+    eq_tokens = eq_tokens * has_eq_token + (-1) * (~has_eq_token)
+
+    return eq_tokens
 
 
 def get_evaluation_criterion(config: Any, encoder: Encoder) -> torch.nn.Module:
