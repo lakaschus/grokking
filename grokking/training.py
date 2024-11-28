@@ -150,7 +150,7 @@ def main(args: Dict[str, Any]) -> None:
                 validation_type="out_of_domain",
             )
 
-        if val_in_metrics["accuracy"] >= 1.0 and not config.continue_training:
+        if val_in_metrics["accuracy"] >= 0.99 and not config.continue_training:
             wandb.finish()
             print(
                 f"Training completed successfully after {optimizer.training_steps} steps."

@@ -26,8 +26,8 @@ NEW_OPERATIONS = {
     "x+y_binary": lambda x, y, _: (x, y, x + y),
     "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
     "x-y": lambda x, y, _: (x, y, x - y),
-    "x,y_max": lambda x, y, _: (x, y, np.maximum(x, y)),
-    "x,y_min": lambda x, y, _: (x, y, np.minimum(x, y)),
+    "x,y_abs_max": lambda x, y, _: (x, y, np.abs(np.maximum(x, y) - 1)),
+    "x,y_abs_min": lambda x, y, _: (x, y, np.abs(np.minimum(x, y) - 1)),
     "x,y_avg": lambda x, y, _: (x, y, (x + y) // 2),
     "x,y_sqrt": lambda x, y, _: (x, y, ((x * y) ** (1 / 2)).long()),
     "x,y_abs_diff": lambda x, y, _: (x, y, np.abs(x - y)),
@@ -118,9 +118,9 @@ def sequence_task_data(
 
 
 def operation_mod_p_data(
-    operation: str, p: int, increment_eq_token: int = 0, increment_op_token: int = 0
+    operation: str, max_number: int, p: int, increment_eq_token: int = 0, increment_op_token: int = 0
 ) -> Tuple[Tensor, Tensor, int, int]:
-    x, y = generate_cartesian_product(operation, p)
+    x, y = generate_cartesian_product(operation, max_number)
     p = get_next_prime(p)
     x, y, labels = ALL_OPERATIONS[operation](x, y, p)
     op_token, eq_token = define_tokens(p)
@@ -400,15 +400,15 @@ def get_data(
         p_out = max_bit_length_val_out
         # TODO: Val Out not working for multitask because id of op and eq token changed compared to train and val in set
         inputs_out, labels_out, _, _ = operation_mod_p_data(
-            operation, p_out, increment_eq_token
+            operation, max_bit_length_val_out, p_out, increment_eq_token
         )
 
         # Generate training and validation data for modulo operations
-        p_diff = max_bit_length_val_out - max_bit_length_train
         inputs, labels, op_token, eq_token = operation_mod_p_data(
             operation,
+            max_bit_length_train,
             p_out,
-            increment_eq_token + p_diff,
+            increment_eq_token,
         )
 
         # Create dataset
