@@ -451,14 +451,13 @@ def evaluate(
                 eq_tokens = get_eq_tokens_from_inputs(inputs, encoder)
                 for eq_token, pred, true in zip(eq_tokens, preds, trues):
                     task = eq_token_to_task.get(eq_token.item(), "Unknown")
-                    per_task_total[task] += 1
                     if config.task_type == "classification":
+                        per_task_total[task] += 1
                         if pred.item() == true.item():
                             per_task_correct[task] += 1
                     elif config.task_type == "sequence":
-                        # For sequence tasks, 'acc' represents accuracy per sample
-                        if sequence_accuracy >= 1.0:
-                            per_task_correct[task] += 1
+                        per_task_total[task] += true.shape[0]
+                        per_task_correct[task] += (pred == true).int().sum().item()
 
             examples_table.extend(
                 collect_validation_examples(
