@@ -23,15 +23,18 @@ This fork significantly extends the original in repository in the following ways
 ## Motivation
 
 Grokking is the phenomenom of delayed generalization even after overfitting on training data.
-This presents an intriguing theoretical puzzle, as there exists no explicit optimization objective in the training process that would account for the sudden improvement in validation accuracy after having achieve zero training loss already.
+This presents an intriguing theoretical puzzle, as there exists no explicit optimization objective in the training process that would account for the sudden improvement in validation accuracy after having achieve zero training loss already. Almost more intriguing is the fact that this works even without any regularization, see also the Figure above.
 
 To better understand the broader applicability of this phenomenon we introduced different representations for the same tasks as in the original paper. Specifically, we examine whether grokking manifests in autoregressive sequence generation tasks that more closely resemble the use of LLMs in practical applications, rather than being limited to single-token classification tasks as demonstrated in the original paper.
 
-Here is an example of the difference between the different task representations (<X> is the token for X, **< X >** in bold is what needs to be predicted by the model.):
+Here is an example of the difference between the different task representations (< X > is the token for X, **< X >** in bold is what needs to be predicted by the model.):
 
-| Single-Token Classification (As in original paper) | Sequence-to-Sequence (Variable Operand Length) | Sequence-to-Sequence (Fixed Operand Length)     |
-| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------- |
-| <1> + <3> <=> **< 4 >**                            | <1> <+> <1><1> <=> **< 1 >< 0 >< 0 >< EOS >**  | <0><0><1> <+> <0><1><1> <=> **< 1 >< 0 >< 0 >** |
+| Task Type                                          | Example                                         |
+| -------------------------------------------------- | ----------------------------------------------- |
+| Single-Token Classification (As in original paper) | <1> + <3> <=> **< 4 >**                         |
+| Sequence-to-Sequence (Variable Operand Length)     | <1> <+> <1><1> <=> **< 1 >< 0 >< 0 >< EOS >**   |
+| Sequence-to-Sequence (Fixed Operand Length)        | <0><0><1> <+> <0><1><1> <=> **< 1 >< 0 >< 0 >** |
+
 
 In addition to that, I was curious if grokking works also in a multitask setting. I was suspicious of how all the grokking examples in literature models were trained specifically for one task only from scratch. To this end I mixed multiple datasets for different tasks and differentiated them by introducing task-specific equal-sign-tokens.
 
