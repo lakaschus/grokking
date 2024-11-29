@@ -81,7 +81,7 @@
             ]
         },
         {
-            "name": "Grokking Multitask - Seq2Seq Type",
+            "name": "Grokking Multitask - Seq2Seq Type - Run 1",
             "type": "debugpy",
             "request": "launch",
             "program": "grokking/cli.py",
@@ -91,7 +91,7 @@
                 "--task_type",
                 "sequence",
                 "--operation",
-                "x/y,x+y_mod,x-y_mod,x^2+y^2_mod", //,x^3+xy+y^2_mod,x^3+xy+y^2+x_mod",
+                "x/y_mod,x+y_mod,x^2+y^2_mod", //,x^3+xy+y^2_mod,x^3+xy+y^2+x_mod",
                 "--training_fraction",
                 "0.5",
                 "--max_bit_length_train",
@@ -117,7 +117,7 @@
                 "--dropout",
                 "0.0",
                 "--wandb_tracking",
-                "maximal",
+                "disabled",
                 "--fixed_sequence_length"
             ]
         },
@@ -129,7 +129,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y",
+                "x/y_mod",
                 "--training_fraction",
                 "0.5",
                 "--max_bit_length_train",
@@ -521,7 +521,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -564,7 +564,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -608,7 +608,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -651,7 +651,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -694,7 +694,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -737,7 +737,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -780,7 +780,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",
@@ -866,7 +866,7 @@
             "console": "integratedTerminal",
             "args": [
                 "--operation",
-                "x/y_binary",
+                "x/y_mod",
                 "--curriculum",
                 "random",
                 "--task_type",

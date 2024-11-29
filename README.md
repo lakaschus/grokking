@@ -1,6 +1,6 @@
 # Grokking
 
-An implementation of the OpenAI 'Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets' paper in PyTorch. Originally forked and modified from:
+An extension of the OpenAI 'Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets' paper in PyTorch. Originally forked and modified from:
 
 https://github.com/danielmamay/grokking
 
@@ -22,7 +22,18 @@ This fork significantly extends the original in repository in the following ways
 
 ## Motivation
 
-TODO: Rationale for the changes
+Grokking is the phenomenom of delayed generalization even after overfitting on training data.
+This presents an intriguing theoretical puzzle, as there exists no explicit optimization objective in the training process that would account for the sudden improvement in validation accuracy after having achieve zero training loss already.
+
+To better understand the broader applicability of this phenomenon we introduced different representations for the same tasks as in the original paper. Specifically, we examine whether grokking manifests in autoregressive sequence generation tasks that more closely resemble the use of LLMs in practical applications, rather than being limited to single-token classification tasks as demonstrated in the original paper.
+
+Here is an example of the difference between the different task representations (<X> is the token for X, **< X >** in bold is what needs to be predicted by the model.):
+
+| Single-Token Classification (As in original paper) | Sequence-to-Sequence (Variable Operand Length) | Sequence-to-Sequence (Fixed Operand Length)     |
+| -------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------- |
+| <1> + <3> <=> **< 4 >**                            | <1> <+> <1><1> <=> **< 1 >< 0 >< 0 >< EOS >**  | <0><0><1> <+> <0><1><1> <=> **< 1 >< 0 >< 0 >** |
+
+In addition to that, I was curious if grokking works also in a multitask setting. I was suspicious of how all the grokking examples in literature models were trained specifically for one task only from scratch. To this end I mixed multiple datasets for different tasks and differentiated them by introducing task-specific equal-sign-tokens.
 
 ## Installation
 
@@ -40,7 +51,44 @@ TODO: Rationale for the changes
 
 ## Structure
 
+The structure of the repository is the following:
+
+```
+📦 grokking
+ ┣ 📂 grokking
+ ┃ ┣ 📂 tests
+ ┃ ┃ ┗ 📜 __init__.py
+ ┃ ┃ ┗ 📜 test_data.py
+ ┃ ┃ ┗ 📜 test_integration.py
+ ┃ ┃ ┗ 📜 test_training.py
+ ┃ ┣ 📜 cli.py
+ ┃ ┣ 📜 data.py
+ ┃ ┣ 📜 data_encoder.py
+ ┃ ┣ 📜 multitask_data.py
+ ┃ ┣ 📜 model.py
+ ┃ ┗ 📜 training.py
+ ┣ 📂 results
+ ┃ ┗ 📂 classification_vs_seq2seq
+ ┃   ┣ 📜 plot_results.ipynb
+ ┃   ┣ 📜 plot_results_new_tasks.ipynb
+ ┃   ┗ 📜 plots.ipynb
+ ┣ 📂 logs
+ ┃ ┣ 📜 validation_examples_in_domain.json (will be created when starting a training run)
+ ┃ ┗ 📜 validation_examples_out_of_domain.json (will be created when starting a training run)
+ ┣ 📂 dataset
+ ┃ ┣ 📜 train_data.json (will be created when starting a training run)
+ ┃ ┣ 📜 val_in_data.json (will be created when starting a training run)
+ ┃ ┗ 📜 val_out_data.json (will be created when starting a training run)
+ ┣ 📜 .gitignore
+ ┣ 📜 LICENSE
+ ┣ 📜 README.md
+ ┣ 📜 requirements.txt
+ ┗ 📜 sweep.yaml
+ ```
+
 The project is organized into the following main components:
+
+
 
 ### Core Components
 
@@ -66,20 +114,14 @@ The project is organized into the following main components:
   - Jupyter notebooks for analyzing experimental results
   - Comparison scripts between classification and sequence tasks
 
-- **Hyperparameter Management**:
-  - Support for grid search (`sweep.yaml`)
-  - Configurable model architecture (layers, dimensions, heads)
-  - Training parameters (learning rate, batch size, weight decay)
-  - Task-specific settings (bit length, training fraction)
-
+- **Hyperparameter Search**:
+  - Grid Search to test robustness of Grokking (`sweep.yaml`)
 
 ## Usage
-
 
 ### Experiment Tracking
 
 The project uses [Weights & Biases](https://wandb.ai/site) to keep track of experiments. Run `wandb login` to use the online dashboard, or `wandb offline` to store the data on your local machine.
-
 
 ### Running Experiments
 

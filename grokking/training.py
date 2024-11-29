@@ -104,9 +104,9 @@ def main(args: Dict[str, Any]) -> None:
     wandb.log({"training_set_size": config.training_set_size}, commit=False)
 
     # Optionally export data
-    export_dataloader_data(train_loader, "train_data.json")
-    export_dataloader_data(val_in_loader, "val_in_data.json")
-    export_dataloader_data(val_out_loader, "val_out_data.json")
+    export_dataloader_data(train_loader, "dataset/train_data.json")
+    export_dataloader_data(val_in_loader, "dataset/val_in_data.json")
+    export_dataloader_data(val_out_loader, "dataset/val_out_data.json")
 
     max_sequence_length = get_max_sequence_length(train_loader)
     config.max_sequence_length = max_sequence_length
