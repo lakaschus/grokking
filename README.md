@@ -163,3 +163,7 @@ python grokking/cli.py [options]
 - `--wandb_tracking`: Weights & Biases tracking mode ("maximal", "minimal", "disabled")
 
 **--> Check out `.vscode/launch.json` for various example configurations!**
+
+## Contribution
+
+Code was written by Phillip Yao-Lakaschus with heavy support of Claude 3.5 (Old/New) and ChatGPT 01-mini. 
