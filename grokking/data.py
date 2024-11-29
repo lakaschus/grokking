@@ -7,9 +7,7 @@ import numpy as np
 from data_encoder import Encoder
 
 DIVISION_MODULO_OPERATIONS = {
-    "x/y": lambda x, y, p: ((x * y) % p, y, x),
-    "x/y_binary": lambda x, y, p: ((x * y) % p, y, x),
-    "x/y_binary_flipped": lambda x, y, p: ((x * y) % p, y, x),
+    "x/y_mod": lambda x, y, p: ((x * y) % p, y, x),
 }
 
 ALL_MODULO_OPERATIONS = {
@@ -26,11 +24,11 @@ NEW_OPERATIONS = {
     "x+y_binary": lambda x, y, _: (x, y, x + y),
     "x+y_binary_flipped": lambda x, y, _: (x, y, x + y),
     "x-y": lambda x, y, _: (x, y, x - y),
-    "x,y_abs_max": lambda x, y, _: (x, y, np.abs(np.maximum(x, y) - 1)),
-    "x,y_abs_min": lambda x, y, _: (x, y, np.abs(np.minimum(x, y) - 1)),
-    "x,y_avg": lambda x, y, _: (x, y, (x + y) // 2),
-    "x,y_sqrt": lambda x, y, _: (x, y, ((x * y) ** (1 / 2)).long()),
-    "x,y_abs_diff": lambda x, y, _: (x, y, np.abs(x - y)),
+    "xy_abs_max": lambda x, y, _: (x, y, np.abs(np.maximum(x, y) - 1)),
+    "xy_abs_min": lambda x, y, _: (x, y, np.abs(np.minimum(x, y) - 1)),
+    "xy_avg": lambda x, y, _: (x, y, (x + y) // 2),
+    "xy_sqrt": lambda x, y, _: (x, y, ((x * y) ** (1 / 2)).long()),
+    "xy_abs_diff": lambda x, y, _: (x, y, np.abs(x - y)),
     # "x,y_abs_todo": lambda x, y, _: (x, y, np.maximum(x, y) + np.abs(x - y)),
     # "x,y_complex_program_1": lambda x, y, _: (x, y, x // 10 if x % 10 == 0 ... TODO),
 }
@@ -118,7 +116,11 @@ def sequence_task_data(
 
 
 def operation_mod_p_data(
-    operation: str, max_number: int, p: int, increment_eq_token: int = 0, increment_op_token: int = 0
+    operation: str,
+    max_number: int,
+    p: int,
+    increment_eq_token: int = 0,
+    increment_op_token: int = 0,
 ) -> Tuple[Tensor, Tensor, int, int]:
     x, y = generate_cartesian_product(operation, max_number)
     p = get_next_prime(p)

@@ -13,7 +13,7 @@ max_bit_length_train=6
 max_bit_length_val_out=7
 max_bit_length_train_sq=$((2 ** max_bit_length_train))
 max_bit_length_val_out_sq=$((2 ** max_bit_length_val_out))
-tasks=("x,y_abs_max" "x,y_abs_min" "x,y_avg" "x,y_sqrt" "x,y_abs_diff")
+tasks=("xy_abs_max" "xy_abs_min" "xy_avg" "xy_sqrt" "xy_abs_diff")
 
 for task in "${tasks[@]}"; do
     echo "Testing configuration for task: $task"
